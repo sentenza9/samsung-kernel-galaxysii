@@ -116,6 +116,12 @@ source "drivers/platform/Kconfig"
 
 source "drivers/gib/Kconfig"
 
+
+
 source "drivers/svnet/Kconfig"
+
+source "drivers/dpram/Kconfig"
+
+source "drivers/modemctl/Kconfig"
 
 endmenu
