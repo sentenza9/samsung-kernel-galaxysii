@@ -2457,6 +2457,60 @@ static int mc1n2_set_codec_status(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifdef CONFIG_TARGET_LOCALE_KOR     // ULP revocery code
+int mc1n2_set_codec_recovery(void)
+{
+	struct snd_soc_codec *codec = mc1n2_get_codec_data();
+	struct mc1n2_data *mc1n2 = codec->drvdata;
+	SINT16 *vol = (SINT16 *)&mc1n2->vol_store;
+	int i;
+
+	// hi99.an
+	// Below message must be printed - this case called in abnormal state only
+	//
+	printk(KERN_DEBUG "\n[mc1n2] cmd_codec_emergency_recovery\n");
+
+	mutex_lock(&mc1n2->mutex);
+
+	/* store parameters */
+	for (i = 0; i < MC1N2_N_INFO_STORE; i++) {
+		struct mc1n2_info_store *store = &mc1n2_info_store_tbl[i];
+		if (store->get) {
+			_McDrv_Ctrl(store->get, (void *)mc1n2 + store->offset, 0);
+		}
+	}
+
+	_McDrv_Ctrl(MCDRV_TERM, NULL, 0);
+
+	/* Suepend MCLK */
+	mc1n2_set_mclk_source(0);
+
+	/* Resume MCLK */
+	mc1n2_set_mclk_source(1);
+
+	_McDrv_Ctrl(MCDRV_INIT, &mc1n2->setup.init, 0);
+
+	/* restore parameters */
+	for (i = 0; i < sizeof(MCDRV_VOL_INFO)/sizeof(SINT16); i++, vol++) {
+		*vol |= 0x0001;
+	}
+
+	for (i = 0; i < MC1N2_N_INFO_STORE; i++) {
+		struct mc1n2_info_store *store = &mc1n2_info_store_tbl[i];
+		if (store->set) {
+			_McDrv_Ctrl(store->set, (void *)mc1n2 + store->offset, store->flags);
+		}
+	}
+
+	mutex_unlock(&mc1n2->mutex);
+
+	printk(KERN_DEBUG "[mc1n2] cmd_codec_emergency_recovery done...\n");
+
+	return 0;
+}
+EXPORT_SYMBOL(mc1n2_set_codec_recovery);
+#endif
+
 static const DECLARE_TLV_DB_SCALE(mc1n2_tlv_digital, -7500, 100, 1);
 static const DECLARE_TLV_DB_SCALE(mc1n2_tlv_adc, -2850, 150, 1);
 static const DECLARE_TLV_DB_SCALE(mc1n2_tlv_ain, -3150, 150, 1);

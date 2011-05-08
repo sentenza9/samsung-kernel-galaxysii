@@ -818,7 +818,7 @@ static ssize_t s5p_rp_write(struct file *file, const char *buffer,
 		return -EFAULT;
 	} else {
 		if (copy_from_user(&s5p_rp.wbuf[s5p_rp.wbuf_pos], buffer, size))
-			return -EFAULT;
+		return -EFAULT;
 	}
 
 	s5p_rp.wbuf_pos += size;
@@ -1201,16 +1201,16 @@ static irqreturn_t s5p_rp_irq(int irqno, void *dev_id)
 	}
 
 	if (irq_code & (RP_INTR_CODE_PLAYDONE | RP_INTR_CODE_ERROR)) {
-		s5pdbg("Stop at EOS\n");
-		s5p_rp_is_running = 0;
-		s5pdbg("Total decoded: %ld frames (RP_read:%08X)\n",
-			s5p_rp_get_frame_counter(),
-			readl(s5p_rp.commbox + RP_READ_BITSTREAM_SIZE));
-		s5p_rp.stop_after_eos = 1;
-		writel(RP_INTR_CODE_POLLINGWAIT,
-			s5p_rp.commbox + RP_INTERRUPT_CODE);
+			s5pdbg("Stop at EOS\n");
+			s5p_rp_is_running = 0;
+			s5pdbg("Total decoded: %ld frames (RP_read:%08X)\n",
+				s5p_rp_get_frame_counter(),
+				readl(s5p_rp.commbox + RP_READ_BITSTREAM_SIZE));
+			s5p_rp.stop_after_eos = 1;
+			writel(RP_INTR_CODE_POLLINGWAIT,
+				s5p_rp.commbox + RP_INTERRUPT_CODE);
 
-		return IRQ_HANDLED;
+			return IRQ_HANDLED;
 	}
 
 	if (irq_code & RP_INTR_CODE_UART_OUTPUT) {

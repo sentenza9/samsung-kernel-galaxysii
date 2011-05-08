@@ -223,11 +223,11 @@ static const MCDRV_DIO_INFO stDioInfo_Default = {
 				/* bInterface : Interface Selection      */
 				/*     MCDRV_DIO_DA (0)  : Digital Audio */
 				/*     MCDRV_DIO_PCM(1)  : PCM           */
-				MCDRV_DIO_DA,
+				MCDRV_DIO_PCM,
 				/* bBckInvert : Bit Clock Inversion Setting     */
 				/*     MCDRV_BCLK_NORMAL(0)  : Normal Operation */
 				/*     MCDRV_BCLK_INVERT(1)  : Clock Inverted   */
-				MCDRV_BCLK_INVERT,
+				MCDRV_BCLK_NORMAL,
 				/* bPcmHizTim : High Impedance transition timing after transmitting the last PCM I/F data */
 				/*     MCDRV_PCMHIZTIM_FALLING(0)  : BCLK#* Falling Edge */
 				/*     MCDRV_PCMHIZTIM_RISING (1)  : BCLK#* Rising Edge  */
@@ -260,7 +260,7 @@ static const MCDRV_DIO_INFO stDioInfo_Default = {
 					/*     MCDRV_DAMODE_HEADALIGN(0)  : Left-justified Format  */
 					/*     MCDRV_DAMODE_I2S      (1)  : I2S                    */
 					/*     MCDRV_DAMODE_TAILALIGN(2)  : Right-justified Format */
-					MCDRV_DAMODE_I2S
+					MCDRV_DAMODE_HEADALIGN
 				},
 				/* sPcmFormat : PCM Format Information */
 				{
@@ -289,7 +289,7 @@ static const MCDRV_DIO_INFO stDioInfo_Default = {
 					MCDRV_PCM_BITSEL_16
 				},
 				/* asSlot : Setting of a slot number of data to be fed to each channel */
-				{1, 1}
+				{0, 0}
 			},
 			/* sDit       */
 			{
@@ -306,7 +306,7 @@ static const MCDRV_DIO_INFO stDioInfo_Default = {
 					/*     MCDRV_DAMODE_HEADALIGN(0)  : Left-justified Format  */
 					/*     MCDRV_DAMODE_I2S      (1)  : I2S                    */
 					/*     MCDRV_DAMODE_TAILALIGN(2)  : Right-justified Format */
-					MCDRV_DAMODE_I2S
+					MCDRV_DAMODE_HEADALIGN
 				},
 				/* sPcmFormat : PCM Format Information */
 				{
@@ -335,7 +335,7 @@ static const MCDRV_DIO_INFO stDioInfo_Default = {
 					MCDRV_PCM_BITSEL_16
 				},
 				/* asSlot Setting of a slot number of data to be transmitted from each channel */
-				{1, 0}
+				{0, 1}
 			}
 		},
 		/* DIO port 2 */
