@@ -50,3 +50,10 @@ config USB_TMC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called usbtmc.
+	  
+config USB_MSM_DLOAD
+	tristate "Qualcomm High Speed USB Downloader"
+	depends on USB
+	default n
+	help
+	  This driver help you to download Qualcomm DBL image through USB.
