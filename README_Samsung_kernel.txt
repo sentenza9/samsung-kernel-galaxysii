@@ -1,4 +1,4 @@
-HOW TO BUILD KERNEL 2.6.35 FOR SHW-M250S
+HOW TO BUILD KERNEL 2.6.35 FOR SHW-M250K
 
 1. How to Build
 	- get Toolchain
@@ -15,4 +15,4 @@ HOW TO BUILD KERNEL 2.6.35 FOR SHW-M250S
 3. How to make .tar binary for downloading into target.
 	- change current directory to Kernel/arch/arm/boot
 	- type following command
-	$ tar cvf SHW-M250S_Kernel_Gingerbread.tar zImage
+	$ tar cvf SHW-M250K_Kernel_Gingerbread.tar zImage
