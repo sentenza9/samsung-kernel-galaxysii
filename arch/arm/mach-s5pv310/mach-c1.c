@@ -6472,7 +6472,9 @@ static void __init s5pv310_reserve(void)
 }
 #endif
 
-MACHINE_START(C1, "SMDKC210")
+#define MODEL_NAME "SHW-M250K"
+MACHINE_START(C1, MODEL_NAME)
+//MACHINE_START(C1, "SMDKC210")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	.phys_io	= S3C_PA_UART & 0xfff00000,
 	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
