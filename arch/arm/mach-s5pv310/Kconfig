@@ -325,6 +325,21 @@ config TARGET_LOCALE_NTT
 
 endchoice
 
+choice
+        prompt "C1 KOR Target Carrier"
+        depends on MACH_C1 && TARGET_LOCALE_KOR
+	default MACH_C1_KOR_SKT
+
+config MACH_C1_KOR_SKT
+	bool "SKT"
+
+config MACH_C1_KOR_KT
+	bool "KT"
+
+config MACH_C1_KOR_LGT
+	bool "LG U+"
+endchoice
+
 comment "MMC/SD slot setup"
 	depends on PLAT_S5P
 

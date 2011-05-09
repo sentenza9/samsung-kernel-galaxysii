@@ -1242,7 +1242,13 @@ EXPORT_SYMBOL(s3c_device_android_usb);
 static struct usb_mass_storage_platform_data ums_pdata = {
 #ifdef CONFIG_TARGET_LOCALE_KOR
 	.vendor			= "SAMSUNG",
+#if defined(CONFIG_MACH_C1_KOR_KT)
 	.product		= "SHW-M250K",
+#elif defined(CONFIG_MACH_C1_KOR_LGT)
+	.product		= "SHW-M250L",
+#else
+	.product		= "SHW-M250S",
+#endif
 #else
 	.vendor			= "Android   ",//"Samsung",
 	.product		= "UMS Composite",//"SMDKV210",

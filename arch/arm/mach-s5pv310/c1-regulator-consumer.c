@@ -21,7 +21,9 @@ static int c1_enable_regulator_for_usb_mipi(bool enable)
 {
 	struct regulator *mipi11_regulator;
 	struct regulator *mipi18_regulator;
+#if !defined(CONFIG_MACH_C1_KOR_LGT)	
 	struct regulator *hsic12_regulator;
+#endif
 	struct regulator *usb33_regulator;
 	int ret = 0;
 
@@ -39,12 +41,14 @@ static int c1_enable_regulator_for_usb_mipi(bool enable)
 		goto out3;
 	}
 
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 	hsic12_regulator = regulator_get(NULL, "vhsic");
 	if (IS_ERR(hsic12_regulator)) {
 		pr_err("%s: failed to get %s\n", __func__, "vhsic 1.2v");
 		ret = -ENODEV;
 		goto out2;
 	}
+#endif
 
 	usb33_regulator = regulator_get(NULL, "vusb_3.3v");
 	if (IS_ERR(usb33_regulator)) {
@@ -60,8 +64,10 @@ static int c1_enable_regulator_for_usb_mipi(bool enable)
 		pr_info("%s: enable LDOs\n", __func__);
 		if (!regulator_is_enabled(mipi11_regulator))
 			regulator_enable(mipi11_regulator);
+#if !defined(CONFIG_MACH_C1_KOR_LGT)		
 		if (!regulator_is_enabled(hsic12_regulator))
 			regulator_enable(hsic12_regulator);
+#endif		
 		if (!regulator_is_enabled(mipi18_regulator))
 			regulator_enable(mipi18_regulator);
 		if (!regulator_is_enabled(usb33_regulator))
@@ -73,13 +79,17 @@ static int c1_enable_regulator_for_usb_mipi(bool enable)
 		pr_info("%s: disable LDOs\n", __func__);
 		regulator_force_disable(usb33_regulator);
 		regulator_force_disable(mipi18_regulator);
+#if !defined(CONFIG_MACH_C1_KOR_LGT)		
 		regulator_force_disable(hsic12_regulator);
+#endif
 		regulator_force_disable(mipi11_regulator);
 	}
 
 	regulator_put(usb33_regulator);
 out1:
+#if !defined(CONFIG_MACH_C1_KOR_LGT)		
 	regulator_put(hsic12_regulator);
+#endif	
 out2:
 	regulator_put(mipi18_regulator);
 out3:

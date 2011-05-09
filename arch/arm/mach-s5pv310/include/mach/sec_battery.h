@@ -15,10 +15,8 @@
 #ifndef __MACH_SEC_BATTERY_H
 #define __MACH_SEC_BATTERY_H __FILE__
 
-#if defined(CONFIG_TARGET_LOCALE_KOR)
-#define HWREV_FOR_BATTERY	0x06
-#elif defined(CONFIG_TARGET_LOCALE_NTT)
-#define HWREV_FOR_BATTERY	0x0C
+#if defined(CONFIG_TARGET_LOCALE_KOR)||defined(CONFIG_TARGET_LOCALE_NTT)
+#define HWREV_FOR_BATTERY	0x03 /*Modified for IGNIS-L by mseok.chae. If you wanna merge it please check this.*/
 #else	/*U1 EUR OPEN */
 #define HWREV_FOR_BATTERY	0x08
 #endif

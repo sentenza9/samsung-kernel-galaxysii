@@ -12,7 +12,14 @@
 #include <linux/wakelock.h>
 #endif
 #include <linux/modemctl.h>
+#if defined(CONFIG_SAMSUNG_PHONE_MODEMCTL)
+#include <linux/irq.h>
+#endif
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+#include <linux/mfd/max8997.h>
+#endif
 
+#if !defined(CONFIG_SAMSUNG_PHONE_MODEMCTL)
 static struct modemctl_platform_data mdmctl_data;
 void modemctl_cfg_gpio(void)
 {
@@ -248,3 +255,284 @@ struct platform_device modemctl = {
 		.platform_data = &mdmctl_data,
 	},
 };
+
+#else
+static struct modemctl_platform_data mdmctl_data;
+void modemctl_cfg_gpio(void)
+{
+	int err = 0;
+	
+	unsigned gpio_phone_on = mdmctl_data.gpio_phone_on;
+	unsigned gpio_phone_active = mdmctl_data.gpio_phone_active;
+	unsigned gpio_cp_rst = mdmctl_data.gpio_cp_reset;
+	unsigned gpio_cp_rst_msm = mdmctl_data.gpio_cp_reset_msm;
+	unsigned gpio_pda_active = mdmctl_data.gpio_pda_active;
+	unsigned gpio_boot_sw_sel = mdmctl_data.gpio_boot_sw_sel;
+//	unsigned gpio_cp_dump_int = mdmctl_data.gpio_cp_dump_int;
+
+	err = gpio_request(gpio_phone_on, "PHONE_ON");
+	if (err) {
+		printk(KERN_ERR "fail to request gpio %s\n", "PHONE_ON");
+	} else {
+		gpio_direction_output(gpio_phone_on, GPIO_LEVEL_LOW);
+		s3c_gpio_setpull(gpio_phone_on, S3C_GPIO_PULL_NONE);
+	}
+
+	err = gpio_request(gpio_cp_rst, "CP_RST");
+	if (err) {
+		printk(KERN_ERR "fail to request gpio %s\n", "CP_RST");
+	} else {
+		gpio_direction_output(gpio_cp_rst, GPIO_LEVEL_LOW);
+		s3c_gpio_setpull(gpio_cp_rst, S3C_GPIO_PULL_NONE);
+	}
+
+	err = gpio_request(gpio_cp_rst_msm, "CP_RST_MSM");
+	if (err) {
+		printk(KERN_ERR "fail to request gpio %s\n", "CP_RST_MSM");
+	} else {
+		gpio_direction_output(gpio_cp_rst_msm, GPIO_LEVEL_LOW);
+		s3c_gpio_cfgpin(gpio_cp_rst_msm, S3C_GPIO_SFN(0x1));	// output
+		s3c_gpio_setpull(gpio_cp_rst_msm, S3C_GPIO_PULL_NONE);
+	}
+
+	err = gpio_request(gpio_pda_active, "PDA_ACTIVE");
+	if (err) {
+		printk(KERN_ERR "fail to request gpio %s\n", "PDA_ACTIVE");
+	} else {
+		gpio_direction_output(gpio_pda_active, GPIO_LEVEL_LOW);
+		s3c_gpio_setpull(gpio_pda_active, S3C_GPIO_PULL_NONE);
+	}
+
+	err = gpio_request(gpio_boot_sw_sel, "BOOT_SW_SEL");   // p1_prime
+	if (err) {
+		printk(KERN_ERR "fail to request gpio %s\n", "BOOT_SW_SEL");
+	} else {
+		gpio_direction_output(gpio_boot_sw_sel, GPIO_LEVEL_LOW);
+		s3c_gpio_setpull(gpio_boot_sw_sel, S3C_GPIO_PULL_NONE);
+	}	
+
+	err = gpio_request(gpio_phone_active, "PHONE_ACTIVE");
+	if (err) {
+		printk(KERN_ERR "fail to request gpio %s\n", "PHONE_ACTIVE");
+	} else {
+		gpio_direction_output(gpio_phone_active, GPIO_LEVEL_LOW);
+		s3c_gpio_cfgpin(gpio_phone_active, S3C_GPIO_SFN(0xF));
+		s3c_gpio_setpull(gpio_phone_active, S3C_GPIO_PULL_NONE);
+	}
+
+//	err = gpio_request(gpio_cp_dump_int, "CP_DUMP_INT");
+//	if (err) {
+//		printk(KERN_ERR "fail to request gpio %s\n", "CP_DUMP_INT");
+//	} else {
+//		gpio_direction_output(gpio_cp_dump_int, 0);
+//		s3c_gpio_cfgpin(gpio_cp_dump_int, S3C_GPIO_SFN(0xF));
+//		s3c_gpio_setpull(gpio_cp_dump_int, S3C_GPIO_PULL_NONE);
+//	}
+}
+
+static void msm_vbus_on(struct modemctl *mc)
+{
+	int err;
+
+	if (system_rev >= 0x06) {
+#ifdef GPIO_USB_BOOT_EN
+		dev_info(mc->dev, "%s : set USB_BOOT_EN\n", __func__);
+		gpio_request(GPIO_USB_BOOT_EN, "USB_BOOT_EN");
+		gpio_direction_output(GPIO_USB_BOOT_EN,1);
+		gpio_free(GPIO_USB_BOOT_EN);
+#endif
+	}
+	else {
+#ifdef GPIO_USB_OTG_EN
+		gpio_request(GPIO_USB_OTG_EN, "USB_OTG_EN");
+		gpio_direction_output(GPIO_USB_OTG_EN,1);
+		gpio_free(GPIO_USB_OTG_EN);
+#endif
+	}
+	mdelay(10);
+
+	if (!mc->cp_vbus) {
+		mc->cp_vbus = regulator_get(NULL, "safeout2");
+		if (IS_ERR(mc->cp_vbus)) {
+			err = PTR_ERR(mc->cp_vbus);
+			printk(KERN_ERR "No CP_VBUS_4.9(safeout2) regualtor: %d\n", err);
+			mc->cp_vbus = NULL;
+		}
+	}
+
+	if (mc->cp_vbus) {
+		dev_info(mc->dev, "%s\n", __func__);
+		regulator_enable(mc->cp_vbus);
+	}
+}
+
+static void msm_vbus_off(struct modemctl *mc)
+{
+	if (mc->cp_vbus) {
+		dev_info(mc->dev, "%s\n", __func__);
+		regulator_disable(mc->cp_vbus);
+	}
+
+	if (system_rev >= 0x06) {
+#ifdef GPIO_USB_BOOT_EN
+		gpio_request(GPIO_USB_BOOT_EN, "USB_BOOT_EN");
+		gpio_direction_output(GPIO_USB_BOOT_EN,0);
+		gpio_free(GPIO_USB_BOOT_EN);
+#endif
+	}
+	else {
+#ifdef GPIO_USB_OTG_EN
+		gpio_request(GPIO_USB_OTG_EN, "USB_OTG_EN");
+		gpio_direction_output(GPIO_USB_OTG_EN,0);
+		gpio_free(GPIO_USB_OTG_EN);
+#endif
+	}
+
+}
+
+static void msm_on(struct modemctl *mc)
+{
+	dev_dbg(mc->dev, "%s\n", __func__);
+	if(!mc->gpio_cp_reset || !mc->gpio_cp_reset_msm || !mc->gpio_phone_on)
+		return;
+
+	gpio_set_value(mc->gpio_pda_active, 0);
+	//gpio_set_value(mc->gpio_phone_on, 0);
+	//gpio_set_value(mc->gpio_cp_reset, 0);
+	//msleep(500);
+	gpio_set_value(mc->gpio_cp_reset, 1);
+	gpio_set_value(mc->gpio_cp_reset_msm, 1);
+	msleep(30);
+	gpio_set_value(mc->gpio_phone_on, 1);
+	//msleep(30);
+	msleep(300);
+	gpio_set_value(mc->gpio_phone_on, 0);
+	msleep(500);
+
+	gpio_set_value(mc->gpio_pda_active, 1);
+
+}
+
+static void msm_off(struct modemctl *mc)
+{
+	dev_dbg(mc->dev, "%s\n", __func__);
+	if(!mc->gpio_cp_reset || !mc->gpio_cp_reset_msm || !mc->gpio_phone_on)
+		return;
+
+	gpio_set_value(mc->gpio_phone_on, 0);
+	gpio_set_value(mc->gpio_cp_reset, 0);
+	gpio_set_value(mc->gpio_cp_reset_msm, 0);
+}
+
+static void msm_reset(struct modemctl *mc)
+{
+	dev_dbg(mc->dev, "%s\n", __func__);
+	if(!mc->gpio_cp_reset || !mc->gpio_cp_reset_msm || !mc->gpio_phone_on)
+		return;
+
+	/* To Do :
+	 * hard_reset(RESET_PMU_N) and soft_reset(RESET_REQ_N)
+	 * should be divided later.
+	 * soft_reset is used for CORE_DUMP
+	 */
+	if(system_rev >= 0x05)
+	{
+		dev_err(mc->dev, "[%s] system_rev: %d\n", __func__, system_rev);
+
+		gpio_set_value(mc->gpio_cp_reset_msm, 0);
+		msleep(100); /* no spec, confirm later exactly how much time
+				   needed to initialize CP with RESET_PMU_N */
+		gpio_set_value(mc->gpio_cp_reset_msm, 1);
+		msleep(40); /* > 37.2 + 2 msec */
+	}
+	else
+	{
+		dev_err(mc->dev, "[%s] system_rev: %d\n", __func__, system_rev);
+
+		gpio_set_value(mc->gpio_cp_reset, 0);
+		msleep(500); /* no spec, confirm later exactly how much time
+				   needed to initialize CP with RESET_PMU_N */
+		gpio_set_value(mc->gpio_cp_reset, 1);
+		msleep(40); /* > 37.2 + 2 msec */
+	}
+//	gpio_set_value(mc->gpio_phone_on, 0);
+//	gpio_set_value(mc->gpio_cp_reset, 0);
+//	gpio_set_value(mc->gpio_cp_reset_msm, 0);
+
+}
+
+static void msm_suspend(struct modemctl *mc)
+{
+	//TBD
+}
+
+static void msm_resume(struct modemctl *mc)
+{
+	//TBD
+}
+
+static void msm_boot_on(struct modemctl *mc)
+{
+	dev_dbg(mc->dev, "%s\n", __func__);
+	msm_vbus_on(mc);
+
+	if(mc->gpio_boot_sw_sel)
+		gpio_set_value(mc->gpio_boot_sw_sel, 0);
+	mc->usb_boot = true;
+}
+
+static void msm_boot_off(struct modemctl *mc)
+{
+	dev_dbg(mc->dev, "%s\n", __func__);
+	msm_vbus_off(mc);
+
+	if(mc->gpio_boot_sw_sel)
+		gpio_set_value(mc->gpio_boot_sw_sel,1);
+	mc->usb_boot = false;
+
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	max8997_muic_update_status(3000);
+#endif
+}
+
+/* Modem control */
+static struct modemctl_platform_data mdmctl_data = {
+	.name = "msm", // QC : "msm", Infinion : "xmm"
+	.gpio_phone_on = GPIO_PHONE_ON,
+	.gpio_phone_active = GPIO_PHONE_ACTIVE,
+	.gpio_pda_active = GPIO_PDA_ACTIVE,
+	.gpio_cp_reset = GPIO_CP_RST,
+	.gpio_cp_reset_msm = GPIO_CP_RST_MSM,
+	.gpio_boot_sw_sel = GPIO_BOOT_SW_SEL,  // p1_prime
+//	.gpio_cp_dump_int = GPIO_CP_DUMP_INT,
+	.ops = {
+		.modem_on = msm_on,
+		.modem_off = msm_off,
+		.modem_reset = msm_reset,
+		.modem_suspend = msm_suspend,
+		.modem_resume = msm_resume,
+		.modem_cfg_gpio = modemctl_cfg_gpio,
+		.modem_boot_on = msm_boot_on,
+		.modem_boot_off = msm_boot_off,
+	}
+};
+
+static struct resource mdmctl_res[] = {
+	[0] = {
+		.start = IRQ_PHONE_ACTIVE,
+		.end = IRQ_PHONE_ACTIVE,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device modemctl = {
+	.name = "modemctl",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(mdmctl_res),
+	.resource = mdmctl_res,
+	.dev = {
+		.platform_data = &mdmctl_data,
+	},
+};
+#endif  /*CONFIG_SAMSUNG_PHONE_SVNET*/
+

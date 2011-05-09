@@ -42,6 +42,8 @@
 #ifdef CONFIG_ANDROID_PMEM
 #include <linux/android_pmem.h>
 #endif
+#include <linux/reboot.h>
+#include <linux/host_notify.h>
 
 #include <asm/pmu.h>
 #include <asm/mach/arch.h>
@@ -106,6 +108,11 @@
 #include <mach/sec_battery.h>
 #include <mach/sec_debug.h>
 
+//#if defined(CONFIG_MACH_C1_KOR_LGT)
+//#else
+#include <linux/modemctl.h>
+//#endif
+
 #ifdef CONFIG_PN544
 #include <linux/pn544.h>
 #endif /* CONFIG_PN544	*/
@@ -140,7 +147,11 @@ struct device *gps_dev;
 EXPORT_SYMBOL(gps_dev);
 
 #ifdef CONFIG_TARGET_LOCALE_KOR
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+#define SYSTEM_REV_SND 0x04
+#else
 #define SYSTEM_REV_SND 0x07
+#endif
 #else
 #define SYSTEM_REV_SND 0x09
 #endif
@@ -210,7 +221,7 @@ static ssize_t c1_switch_store_vbus(struct device *dev,
 }
 
 static DEVICE_ATTR(disable_vbus, 0664, c1_switch_show_vbus,
-		   c1_switch_store_vbus);
+		c1_switch_store_vbus);
 
 #ifdef CONFIG_TARGET_LOCALE_KOR
 /* usb access control for SEC DM */
@@ -262,7 +273,7 @@ static ssize_t c1_switch_store_usb_lock(struct device *dev,
 }
 
 static DEVICE_ATTR(enable, 0664,
-		   c1_switch_show_usb_lock, c1_switch_store_usb_lock);
+		c1_switch_show_usb_lock, c1_switch_store_usb_lock);
 #endif
 
 static void c1_sec_switch_init(void)
@@ -486,7 +497,12 @@ static int m5mo_power_on(void)
 		printk(KERN_ERR "faile to request gpio(GPIO_VT_CAM_15V)\n");
 		return ret;
 	}
+
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	ret = gpio_request(GPIO_ISP_RESET, "GPE0");
+#else
 	ret = gpio_request(GPIO_ISP_RESET, "GPY3");
+#endif
 	if (ret) {
 		printk(KERN_ERR "faile to request gpio(ISP_RESET)\n");
 		return ret;
@@ -616,7 +632,12 @@ static int m5mo_power_down(void)
 		return ret;
 	}
 #endif
+
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	ret = gpio_request(GPIO_ISP_RESET, "GPE0");
+#else
 	ret = gpio_request(GPIO_ISP_RESET, "GPY3");
+#endif
 	if (ret) {
 		printk(KERN_ERR "faile to request gpio(ISP_RESET)\n");
 		return ret;
@@ -882,10 +903,14 @@ static struct s3c_platform_camera m5mo = {
 static int s5k6aafx_get_i2c_busnum(void)
 {
 #if !defined(CONFIG_MACH_C1_REV00)
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	return 12;
+#else
 	if (system_rev >= 3)
 		return 12;
 	else
 		return 6;
+#endif	
 #else
 	return 12;
 #endif
@@ -1156,10 +1181,14 @@ static struct s3c_platform_camera s5k6aafx = {
 #ifdef CONFIG_VIDEO_S5K5BAFX
 static int s5k5bafx_get_i2c_busnum(void)
 {
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	return 12;
+#else
 	if (system_rev >= 3)
 		return 12;
 	else
 		return 6;
+#endif
 }
 
 static int s5k5bafx_power_on(void)
@@ -1169,7 +1198,12 @@ static int s5k5bafx_power_on(void)
 
 	/* printk("%s: in\n", __func__); */
 
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	ret = gpio_request(GPIO_ISP_RESET, "GPE0");
+#else
 	ret = gpio_request(GPIO_ISP_RESET, "GPY3");
+#endif
+
 	if (ret) {
 		printk(KERN_ERR "faile to request gpio(ISP_RESET)\n");
 		return ret;
@@ -1195,10 +1229,10 @@ static int s5k5bafx_power_on(void)
 		return ret;
 	}
 
-	if (system_rev >= 9) {
-		s3c_gpio_setpull(VT_CAM_SDA_18V, S3C_GPIO_PULL_NONE);
-		s3c_gpio_setpull(VT_CAM_SCL_18V, S3C_GPIO_PULL_NONE);
-	}
+///////////////
+	s3c_gpio_setpull(VT_CAM_SDA_18V, S3C_GPIO_PULL_NONE);
+	s3c_gpio_setpull(VT_CAM_SCL_18V, S3C_GPIO_PULL_NONE);
+///////////////
 
 	/* ISP_RESET low*/
 	ret = gpio_direction_output(GPIO_ISP_RESET, 0);
@@ -1350,12 +1384,12 @@ static int s5k5bafx_power_off(void)
 	regulator_put(regulator);
 	CAM_CHECK_ERR(ret, "disable isp_core");
 
-	if (system_rev >= 9) {
-		gpio_direction_input(VT_CAM_SDA_18V);
-		s3c_gpio_setpull(VT_CAM_SDA_18V, S3C_GPIO_PULL_DOWN);
-		gpio_direction_input(VT_CAM_SCL_18V);
-		s3c_gpio_setpull(VT_CAM_SCL_18V, S3C_GPIO_PULL_DOWN);
-	}
+///////////////
+	gpio_direction_input(VT_CAM_SDA_18V);
+	s3c_gpio_setpull(VT_CAM_SDA_18V, S3C_GPIO_PULL_DOWN);
+	gpio_direction_input(VT_CAM_SCL_18V);
+	s3c_gpio_setpull(VT_CAM_SCL_18V, S3C_GPIO_PULL_DOWN);
+///////////////
 
 	gpio_free(GPIO_CAM_VGA_nRST);
 	gpio_free(GPIO_CAM_VGA_nSTBY);
@@ -1368,13 +1402,29 @@ static int s5k5bafx_power_off(void)
 static int s5k5bafx_power(int onoff)
 {
 	int ret = 0;
-
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	u32 cfg = 0;
+#endif
 	printk(KERN_INFO "%s(): %s\n", __func__, onoff ? "on" : "down");
+
+
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	cfg = readl(S5PV310_VA_GPIO2 + 0x002c);
+#endif
+
 	if (onoff) {
+
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+		writel(cfg | 0x0080, S5PV310_VA_GPIO2 + 0x002c); // 0x080:2x, 0x040 :3x , 0x0c0:4x 
+#endif
 		ret = s5k5bafx_power_on();
 		if (unlikely(ret))
 			goto error_out;
 	} else {
+
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+		writel(cfg & 0xff3f, S5PV310_VA_GPIO2 + 0x002c); // 1x
+#endif
 		ret = s5k5bafx_power_off();
 		/* s3c_i2c0_force_stop();*/ /* DSLIM. Should be implemented */
 	}
@@ -1475,7 +1525,10 @@ void cam_cfg_gpio(struct platform_device *pdev)
 		return;
 
 #ifdef CONFIG_VIDEO_S5K5BAFX
-	if (system_rev >= 9) {/* Rev0.9 */
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
+	if (system_rev >= 9)
+#endif
+        {/* Rev0.9 */
 		ret = gpio_direction_input(VT_CAM_SDA_18V);
 		CAM_CHECK_ERR(ret, "VT_CAM_SDA_18V");
 		s3c_gpio_setpull(VT_CAM_SDA_18V, S3C_GPIO_PULL_DOWN);
@@ -1659,6 +1712,7 @@ static struct regulator_init_data ldo8_init_data = {
 	.consumer_supplies	= &ldo8_supply[0],
 };
 
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 static struct regulator_init_data ldo13_init_data = {
 	.constraints	= {
 		.name		= "vhsic range",
@@ -1674,6 +1728,7 @@ static struct regulator_init_data ldo13_init_data = {
 	.num_consumer_supplies	= ARRAY_SIZE(ldo13_supply),
 	.consumer_supplies	= ldo13_supply,
 };
+#endif
 
 static struct regulator_init_data ldo17_init_data = {
 	.constraints	= {
@@ -1914,8 +1969,13 @@ REGULATOR_INIT(ldo3, "VUSB_1.1V", 1100000, 1100000, 1,
 		REGULATOR_CHANGE_STATUS, 1);
 REGULATOR_INIT(ldo4, "VMIPI_1.8V", 1800000, 1800000, 1,
 		REGULATOR_CHANGE_STATUS, 1);
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+REGULATOR_INIT(ldo5, "VHSIC_1.2V", 1200000, 1200000, 0,
+		REGULATOR_CHANGE_STATUS, 1);
+#else
 REGULATOR_INIT(ldo5, "VHSIC_1.2V", 1200000, 1200000, 1,
 		REGULATOR_CHANGE_STATUS, 1);
+#endif
 REGULATOR_INIT(ldo7, "CAM_ISP_1.8V", 1800000, 1800000, 0,
 		REGULATOR_CHANGE_STATUS, 1);
 REGULATOR_INIT(ldo8, "VUSB_3.3V", 3300000, 3300000, 1,
@@ -1938,8 +1998,8 @@ REGULATOR_INIT(ldo13, "VCC_3.0V_LCD", 3300000, 3300000, 1,
 REGULATOR_INIT(ldo13, "VCC_3.0V_LCD", 3000000, 3000000, 1,
 		REGULATOR_CHANGE_STATUS, 1);
 #endif
-REGULATOR_INIT(ldo14, "VCC_2.8V_MOTOR", 2800000, 2800000, 0,
-		REGULATOR_CHANGE_STATUS, 1);
+REGULATOR_INIT(ldo14, "VCC_3.0V_MOTOR", 3000000, 3000000, 0,
+		REGULATOR_CHANGE_STATUS, 1);//2.8V->3.0V LGT 4/2 HW 요청사항
 REGULATOR_INIT(ldo15, "LED_A_2.8V", 2800000, 2800000, 0,
 		REGULATOR_CHANGE_STATUS, 1);
 REGULATOR_INIT(ldo16, "CAM_SENSOR_IO_1.8V", 1800000, 1800000, 0,
@@ -2127,11 +2187,14 @@ static int max8997_regulator_is_valid(int id,
 
 	switch (id) {
 	case MAX8997_LDO17:
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+		regulator_name = "VTF_2.8V";
+#else
 		if (system_rev >= 0x3)
 			regulator_name = "VTF_2.8V";
 		else
 			regulator_name = "VT_CAM_CORE_1.8V";
-
+#endif
 		ret = !strcmp(initdata->constraints.name, regulator_name);
 		break;
 	default:
@@ -2201,6 +2264,10 @@ static struct max8997_power_data max8997_power = {
 	.batt_detect = 1,
 };
 
+#if defined(CONFIG_SAMSUNG_PHONE_MODEMCTL)
+extern bool mc_is_usb_boot(void);
+#endif
+
 static int max8997_muic_set_safeout(int path)
 {
 	struct regulator *regulator;
@@ -2231,8 +2298,17 @@ static int max8997_muic_set_safeout(int path)
 		regulator = regulator_get(NULL, "safeout2");
 		if (IS_ERR(regulator))
 			return -ENODEV;
-		if (regulator_is_enabled(regulator))
-			regulator_force_disable(regulator);
+		if (regulator_is_enabled(regulator)) {
+#if defined(CONFIG_SAMSUNG_PHONE_MODEMCTL)
+			/* IGNIS-LG: DO not disable safeout2 when modem is in usb-boot mode*/
+			if (!mc_is_usb_boot())
+#endif	
+			{
+				regulator_force_disable(regulator);
+			}
+			else {
+			}
+		}
 		regulator_put(regulator);
 	}
 
@@ -2287,6 +2363,11 @@ static int max8997_muic_charger_cb(cable_type_t cable_type)
 
 	if (charging_cbs.tsp_set_charging_cable)
 		charging_cbs.tsp_set_charging_cable(value.intval);
+
+	if(mc_is_usb_boot() && cable_type == CABLE_TYPE_USB) {
+		printk("%s : mc_is_usb_boot is true... skip charger action\n", __func__);
+		return 0;
+	}
 
 	return psy->set_property(psy, POWER_SUPPLY_PROP_ONLINE, &value);
 }
@@ -2488,15 +2569,20 @@ static bool mc1n2_submic_bias;
 
 static void set_shared_mic_bias(void)
 {
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	gpio_set_value(GPIO_MIC_BIAS_EN, mc1n2_mainmic_bias || mc1n2_submic_bias);
+#else
 	if (system_rev >= 0x03)
 		gpio_set_value(GPIO_MIC_BIAS_EN, mc1n2_mainmic_bias || mc1n2_submic_bias);
 	else
 		gpio_set_value(GPIO_EAR_MIC_BIAS_EN, mc1n2_mainmic_bias || mc1n2_submic_bias);
+#endif
 }
 
 void sec_set_sub_mic_bias(bool on)
 {
 #ifdef CONFIG_SND_SOC_USE_EXTERNAL_MIC_BIAS
+	printk(KERN_INFO"sec_set _sub_mic_bias on %d revision %d \n",on,system_rev);	
 	if (system_rev < SYSTEM_REV_SND) {
 		unsigned long flags;
 		spin_lock_irqsave(&mic_bias_lock, flags);
@@ -2512,7 +2598,8 @@ void sec_set_sub_mic_bias(bool on)
 
 void sec_set_main_mic_bias(bool on)
 {
-#ifdef CONFIG_SND_SOC_USE_EXTERNAL_MIC_BIAS
+#ifdef CONFIG_SND_SOC_USE_EXTERNAL_MIC_BIAS	
+	printk(KERN_INFO"sec_set _main_mic_bias on %d revision %d \n",on,system_rev);		
 	if (system_rev < SYSTEM_REV_SND) {
 		unsigned long flags;
 		spin_lock_irqsave(&mic_bias_lock, flags);
@@ -2699,7 +2786,7 @@ static u8 t7_config[] = {GEN_POWERCONFIG_T7,
 				255,	/* ACTVACQINT */
 				25 		/* ACTV2IDLETO: 25 * 200ms = 5s */};
 static u8 t8_config[] = {GEN_ACQUISITIONCONFIG_T8,
-				10, 0, 5, 1, 0, 0, 9, 30};/*byte 3: 0*/
+	10, 0, 5, 1, 0, 0, 9, 30};/*byte 3: 0*/
 static u8 t9_config[] = {TOUCH_MULTITOUCHSCREEN_T9,
 				131, 0, 0, 19, 11, 0, 32, MXT224_THRESHOLD, 2, 1, 0,
 				15,		/* MOVHYSTI */
@@ -2887,7 +2974,7 @@ static struct i2c_board_info i2c_devs2[] __initdata = {
 #ifdef CONFIG_S3C_DEV_I2C3
 /* I2C3 */
 static struct i2c_board_info i2c_devs3[] __initdata = {
-#if defined(CONFIG_TOUCHSCREEN_QT602240) || defined(CONFIG_TOUCHSCREEN_MXT768E)
+#if defined(CONFIG_TOUCHSCREEN_QT602240) || defined(CONFIG_TOUCHSCREEN_MXT768E) 
 	{
 #ifdef CONFIG_TOUCHSCREEN_MXT768E
 		I2C_BOARD_INFO(MXT224_DEV_NAME, 0x4c),
@@ -3073,7 +3160,7 @@ struct max17042_reg_data max17042_alert_init_data[] = {
 	/* VALRT Threshold setting (disable) */
 	{ MAX17042_REG_VALRT_TH,	0x00,	0xFF },
 	/* TALRT Threshold setting (disable) */
-	{ MAX17042_REG_TALRT_TH,	0x80,	0x7F },
+	{ MAX17042_REG_TALRT_TH,	0x80,	0x7F },	
 };
 
 bool max17042_is_low_batt(void)
@@ -3231,7 +3318,7 @@ static struct i2c_board_info i2c_devs11_emul[] __initdata = {
 #endif
 
 #if defined(CONFIG_VIDEO_S5K6AAFX) || defined(CONFIG_VIDEO_S5K5BAFX)
-static struct i2c_gpio_platform_data i2c12_platdata = {
+static	struct	i2c_gpio_platform_data	i2c12_platdata = {
 	.sda_pin		= VT_CAM_SDA_18V,
 	.scl_pin		= VT_CAM_SCL_18V,
 	.udelay			= 2,	/* 250KHz */
@@ -3365,7 +3452,7 @@ static struct platform_device s3c_device_i2c15 = {
 #endif
 
 #ifdef CONFIG_FM_SI4709_MODULE
-static struct i2c_gpio_platform_data i2c16_platdata = {
+static	struct	i2c_gpio_platform_data	i2c16_platdata = {
 	.sda_pin		= GPIO_FM_SDA_28V,
 	.scl_pin		= GPIO_FM_SCL_28V,
 	.udelay			= 2,	/* 250KHz */
@@ -3388,7 +3475,7 @@ static struct i2c_board_info i2c_devs16[] __initdata = {
 #endif
 
 #ifdef CONFIG_VIDEO_M5MO_USE_SWI2C
-static struct i2c_gpio_platform_data i2c25_platdata = {
+static	struct	i2c_gpio_platform_data	i2c25_platdata = {
 	.sda_pin		= S5PV310_GPD1(0),
 	.scl_pin		= S5PV310_GPD1(1),
 	.udelay			= 5,	/* 250KHz */
@@ -3416,7 +3503,7 @@ static struct	i2c_board_info i2c_devs17[]	__initdata = {
 	},
 };
 
-static struct i2c_gpio_platform_data i2c17_platdata = {
+static struct	i2c_gpio_platform_data	i2c17_platdata = {
 	.sda_pin		= GPIO_ISDBT_SDA_28V,
 	.scl_pin		= GPIO_ISDBT_SCL_28V,
 	.udelay			= 3,	/*  kHz	*/
@@ -3531,6 +3618,8 @@ static int lcd_cfg_gpio(void)
 	writel(0xaaaaaaaa, S5P_VA_GPIO + 0x1cc);
 	writel(readl(S5P_VA_GPIO + 0x1ec) | 0xaaaaaa, S5P_VA_GPIO + 0x1ec);
 #endif
+
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 	/* MLCD_RST */
 	s3c_gpio_cfgpin(S5PV310_GPY4(5), S3C_GPIO_OUTPUT);
 	s3c_gpio_setpull(S5PV310_GPY4(5), S3C_GPIO_PULL_NONE);
@@ -3544,6 +3633,20 @@ static int lcd_cfg_gpio(void)
 	/* LCD_SDI */
 	s3c_gpio_cfgpin(S5PV310_GPY3(3), S3C_GPIO_OUTPUT);
 	s3c_gpio_setpull(S5PV310_GPY3(3), S3C_GPIO_PULL_NONE);
+#else
+	/* MLCD_RST */
+	s3c_gpio_cfgpin(S5PV310_GPX1(3), S3C_GPIO_OUTPUT);
+	s3c_gpio_setpull(S5PV310_GPX1(3), S3C_GPIO_PULL_NONE);
+	/* LCD_nCS */
+	s3c_gpio_cfgpin(S5PV310_GPY0(3), S3C_GPIO_OUTPUT);
+	s3c_gpio_setpull(S5PV310_GPY0(3), S3C_GPIO_PULL_NONE);
+	/* LCD_SCLK */
+	s3c_gpio_cfgpin(S5PV310_GPE2(3), S3C_GPIO_OUTPUT);
+	s3c_gpio_setpull(S5PV310_GPE2(3), S3C_GPIO_PULL_NONE);
+	/* LCD_SDI */
+	s3c_gpio_cfgpin(S5PV310_GPX1(1), S3C_GPIO_OUTPUT);
+	s3c_gpio_setpull(S5PV310_GPX1(1), S3C_GPIO_PULL_NONE);
+#endif
 
 	return 0;
 }
@@ -3584,7 +3687,11 @@ static int reset_lcd(struct lcd_device *ld)
 	int reset_gpio = -1;
 	int err;
 
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 	reset_gpio = S5PV310_GPY4(5);
+#else
+	reset_gpio = S5PV310_GPX1(3);
+#endif
 
 	err = gpio_request(reset_gpio, "MLCD_RST");
 	if (err) {
@@ -3608,7 +3715,11 @@ static int lcd_gpio_cfg_earlysuspend(struct lcd_device *ld)
 	int reset_gpio = -1;
 	int err;
 
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 	reset_gpio = S5PV310_GPY4(5);
+#else
+	reset_gpio = S5PV310_GPX1(3);
+#endif
 
 	err = gpio_request(reset_gpio, "MLCD_RST");
 	if (err) {
@@ -3650,6 +3761,7 @@ static int lcd_gpio_cfg_earlysuspend(struct lcd_device *ld)
 
 static int lcd_gpio_cfg_lateresume(struct lcd_device *ld)
 {
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 	/* MLCD_RST */
 	s3c_gpio_cfgpin(S5PV310_GPY4(5), S3C_GPIO_OUTPUT);
 	s3c_gpio_setpull(S5PV310_GPY4(5), S3C_GPIO_PULL_NONE);
@@ -3663,6 +3775,20 @@ static int lcd_gpio_cfg_lateresume(struct lcd_device *ld)
 	/* LCD_SDI */
 	s3c_gpio_cfgpin(S5PV310_GPY3(3), S3C_GPIO_OUTPUT);
 	s3c_gpio_setpull(S5PV310_GPY3(3), S3C_GPIO_PULL_NONE);
+#else
+	/* MLCD_RST */
+	s3c_gpio_cfgpin(S5PV310_GPX1(3), S3C_GPIO_OUTPUT);
+	s3c_gpio_setpull(S5PV310_GPX1(3), S3C_GPIO_PULL_NONE);
+	/* LCD_nCS */
+	s3c_gpio_cfgpin(S5PV310_GPY0(3), S3C_GPIO_OUTPUT);
+	s3c_gpio_setpull(S5PV310_GPY0(3), S3C_GPIO_PULL_NONE);
+	/* LCD_SCLK */
+	s3c_gpio_cfgpin(S5PV310_GPE2(3), S3C_GPIO_OUTPUT);
+	s3c_gpio_setpull(S5PV310_GPE2(3), S3C_GPIO_PULL_NONE);
+	/* LCD_SDI */
+	s3c_gpio_cfgpin(S5PV310_GPX1(1), S3C_GPIO_OUTPUT);
+	s3c_gpio_setpull(S5PV310_GPX1(1), S3C_GPIO_PULL_NONE);
+#endif
 
 	return 0;
 }
@@ -3706,13 +3832,17 @@ static struct lcd_platform_data ld9040_platform_data = {
 //	.power_off_delay	= 120,	/* 120ms */
 	.reset_delay		= 20,	/* 20ms */
 	.power_on_delay		= 50,	/* 50ms */
-	.power_off_delay	= 300,	/* 300ms */
+	.power_off_delay	= 200,	/* 200ms */
 	.sleep_in_delay		= 160,
 	.pdata			= &c1_panel_data,
 };
 
 #define LCD_BUS_NUM	3
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 #define DISPLAY_CS	S5PV310_GPY4(3)
+#else
+#define DISPLAY_CS	S5PV310_GPY0(3)
+#endif
 static struct spi_board_info spi_board_info[] __initdata = {
 	{
 		.max_speed_hz	= 1200000,
@@ -3723,8 +3853,13 @@ static struct spi_board_info spi_board_info[] __initdata = {
 	},
 };
 
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 #define DISPLAY_CLK	S5PV310_GPY3(1)
 #define DISPLAY_SI	S5PV310_GPY3(3)
+#else
+#define DISPLAY_CLK	S5PV310_GPE2(3)
+#define DISPLAY_SI	S5PV310_GPX1(1)
+#endif
 static struct spi_gpio_platform_data lcd_spi_gpio_data = {
 	.sck			= DISPLAY_CLK,
 	.mosi			= DISPLAY_SI,
@@ -4133,12 +4268,7 @@ static void __init mipi_fb_init(void)
 static struct android_pmem_platform_data pmem_pdata = {
 	.name = "pmem",
 	.no_allocator = 1,
-#ifdef CONFIG_TARGET_LOCALE_KOR
 	.cached = 1,
-#else
-	.cached = 0,
-#endif
-
 	.start = 0, // will be set during proving pmem driver.
 	.size = 0 // will be set during proving pmem driver.
 };
@@ -4283,163 +4413,6 @@ static struct sec_bat_adc_table_data temper_table[] =  {
 	{ 1658,	 -130 },
 	{ 1667,	 -140 },
 };
-#elif defined(CONFIG_TARGET_LOCALE_NTT)
-/* temperature table for ADC 6 */
-static struct sec_bat_adc_table_data temper_table[] =  {
-	{  273,	 670 },
-	{  289,	 660 },
-	{  304,	 650 },
-	{  314,	 640 },
-	{  325,	 630 },
-	{  337,	 620 },
-	{  347,	 610 },
-	{  361,	 600 },
-	{  376,	 590 },
-	{  391,	 580 },
-	{  406,	 570 },
-	{  417,	 560 },
-	{  431,	 550 },
-	{  447,	 540 },
-	{  474,	 530 },
-	{  491,	 520 },
-	{  499,	 510 },
-	{  511,	 500 },
-	{  519,	 490 },
-	{  547,	 480 },
-	{  568,	 470 },
-	{  585,	 460 },
-	{  597,	 450 },
-	{  614,	 440 },
-	{  629,	 430 },
-	{  647,	 420 },
-	{  672,	 410 },
-	{  690,	 400 },
-	{  720,	 390 },
-	{  735,	 380 },
-	{  755,	 370 },
-	{  775,	 360 },
-	{  795,	 350 },
-	{  818,	 340 },
-	{  841,	 330 },
-	{  864,	 320 },
-	{  887,	 310 },
-	{  909,	 300 },
-	{  932,	 290 },
-	{  954,	 280 },
-	{  976,	 270 },
-	{  999,	 260 },
-	{ 1021,	 250 },
-	{ 1051,	 240 },
-	{ 1077,	 230 },
-	{ 1103,	 220 },
-	{ 1129,	 210 },
-	{ 1155,	 200 },
-	{ 1177,	 190 },
-	{ 1199,	 180 },
-	{ 1220,	 170 },
-	{ 1242,	 160 },
-	{ 1263,	 150 },
-	{ 1284,	 140 },
-	{ 1306,	 130 },
-	{ 1326,	 120 },
-	{ 1349,	 110 },
-	{ 1369,	 100 },
-	{ 1390,	  90 },
-	{ 1411,	  80 },
-	{ 1433,	  70 },
-	{ 1454,	  60 },
-	{ 1474,	  50 },
-	{ 1486,	  40 },
-	{ 1499,	  30 },
-	{ 1512,	  20 },
-	{ 1531,	  10 },
-	{ 1548,	   0 },
-	{ 1570,	 -10 },
-	{ 1597,	 -20 },
-	{ 1624,	 -30 },
-	{ 1633,	 -40 },
-	{ 1643,	 -50 },
-	{ 1652,	 -60 },
-	{ 1663,	 -70 },
-};
-/* temperature table for ADC 7 */
-static struct sec_bat_adc_table_data temper_table_ADC7[] =  {
-	{  300,	 670 },
-	{  310,	 660 },
-	{  324,	 650 },
-	{  330,	 640 },
-	{  340,	 630 },
-	{  353,	 620 },
-	{  368,	 610 },
-	{  394,	 600 },
-	{  394,	 590 },
-	{  401,	 580 },
-	{  418,	 570 },
-	{  431,	 560 },
-	{  445,	 550 },
-	{  460,	 540 },
-	{  478,	 530 },
-	{  496,	 520 },
-	{  507,	 510 },
-	{  513,	 500 },
-	{  531,	 490 },
-	{  553,	 480 },
-	{  571,	 470 },
-	{  586,	 460 },
-	{  604,	 450 },
-	{  614,	 440 },
-	{  640,	 430 },
-	{  659,	 420 },
-	{  669,	 410 },
-	{  707,	 400 },
-	{  722,	 390 },
-	{  740,	 380 },
-	{  769,	 370 },
-	{  783,	 360 },
-	{  816,	 350 },
-	{  818,	 340 },
-	{  845,	 330 },
-	{  859,	 320 },
-	{  889,	 310 },
-	{  929,	 300 },
-	{  942,	 290 },
-	{  955,	 280 },
-	{  972,	 270 },
-	{  996,	 260 },
-	{ 1040,	 250 },
-	{ 1049,	 240 },
-	{ 1073,	 230 },
-	{ 1096,	 220 },
-	{ 1114,	 210 },
-	{ 1159,	 200 },
-	{ 1165,	 190 },
-	{ 1206,	 180 },
-	{ 1214,	 170 },
-	{ 1227,	 160 },
-	{ 1256,	 150 },
-	{ 1275,	 140 },
-	{ 1301,	 130 },
-	{ 1308,	 120 },
-	{ 1357,	 110 },
-	{ 1388,	 100 },
-	{ 1396,	  90 },
-	{ 1430,	  80 },
-	{ 1448,	  70 },
-	{ 1468,	  60 },
-	{ 1499,	  50 },
-	{ 1506,	  40 },
-	{ 1522,	  30 },
-	{ 1535,	  20 },
-	{ 1561,	  10 },
-	{ 1567,	   0 },
-	{ 1595,	 -10 },
-	{ 1620,	 -20 },
-	{ 1637,	 -30 },
-	{ 1640,	 -40 },
-	{ 1668,	 -50 },
-	{ 1669,	 -60 },
-	{ 1688,	 -70 },
-};
 #else
 /* temperature table for ADC 6 */
 static struct sec_bat_adc_table_data temper_table[] =  {
@@ -4521,44 +4494,44 @@ static struct sec_bat_adc_table_data temper_table[] =  {
 };
 /* temperature table for ADC 7 */
 static struct sec_bat_adc_table_data temper_table_ADC7[] =  {
-	{  289,	 670 },
-	{  304,	 660 },
-	{  314,	 650 },
-	{  325,	 640 },
-	{  337,	 630 },
+	{  293,	 670 },
+	{  301,	 660 },
+	{  311,	 650 },
+	{  321,	 640 },
+	{  335,	 630 },
 	{  347,	 620 },
-	{  358,	 610 },
-	{  371,	 600 },
-	{  384,	 590 },
-	{  396,	 580 },
-	{  407,	 570 },
-	{  419,	 560 },
-	{  431,	 550 },
-	{  447,	 540 },
-	{  474,	 530 },
+	{  355,	 610 },
+	{  370,	 600 },
+	{  386,	 590 },
+	{  397,	 580 },
+	{  412,	 570 },
+	{  423,	 560 },
+	{  440,	 550 },
+	{  452,	 540 },
+	{  476,	 530 },
 	{  491,	 520 },
 	{  499,	 510 },
 	{  511,	 500 },
-	{  529,	 490 },
-	{  547,	 480 },
-	{  568,	 470 },
-	{  585,	 460 },
-	{  597,	 450 },
-	{  611,	 440 },
-	{  626,	 430 },
-	{  643,	 420 },
-	{  665,	 410 },
-	{  680,	 400 },
-	{  703,	 390 },
-	{  720,	 380 },
-	{  743,	 370 },
-	{  765,	 360 },
-	{  789,	 350 },
-	{  813,	 340 },
+	{  521,	 490 },
+	{  553,	 480 },
+	{  571,	 470 },
+	{  590,	 460 },
+	{  605,	 450 },
+	{  618,	 440 },
+	{  632,	 430 },
+	{  647,	 420 },
+	{  672,	 410 },
+	{  690,	 400 },
+	{  720,	 390 },
+	{  735,	 380 },
+	{  755,	 370 },
+	{  775,	 360 },
+	{  795,	 350 },
+	{  818,	 340 },
 	{  841,	 330 },
 	{  864,	 320 },
 	{  887,	 310 },
-	{  909,	 300 },
+	{  913,	 300 },
 	{  932,	 290 },
 	{  954,	 280 },
 	{  976,	 270 },
@@ -4578,24 +4551,24 @@ static struct sec_bat_adc_table_data temper_table_ADC7[] =  {
 	{ 1306,	 130 },
 	{ 1326,	 120 },
 	{ 1349,	 110 },
-	{ 1369,	 100 },
-	{ 1390,	  90 },
-	{ 1411,	  80 },
-	{ 1433,	  70 },
-	{ 1454,	  60 },
-	{ 1474,	  50 },
-	{ 1486,	  40 },
-	{ 1499,	  30 },
-	{ 1512,	  20 },
-	{ 1531,	  10 },
-	{ 1548,	   0 },
-	{ 1570,	 -10 },
-	{ 1597,	 -20 },
-	{ 1624,	 -30 },
-	{ 1633,	 -40 },
-	{ 1643,	 -50 },
-	{ 1652,	 -60 },
-	{ 1663,	 -70 },
+	{ 1374,	 100 },
+	{ 1399,	  90 },
+	{ 1422,	  80 },
+	{ 1443,	  70 },
+	{ 1461,	  60 },
+	{ 1480,	  50 },
+	{ 1491,	  40 },
+	{ 1504,	  30 },
+	{ 1522,	  20 },
+	{ 1541,	  10 },
+	{ 1568,	   0 },
+	{ 1601,	 -10 },
+	{ 1625,	 -20 },
+	{ 1651,	 -30 },
+	{ 1660,	 -40 },
+	{ 1671,	 -50 },
+	{ 1680,	 -60 },
+	{ 1689,	 -70 },
 };
 #endif
 #define ADC_CH_TEMPERATURE_PMIC	6
@@ -4668,9 +4641,10 @@ static struct platform_device c1_regulator_consumer = {
 #ifdef CONFIG_MAX8922_CHARGER
 static int max8922_cfg_gpio(void)
 {
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 	if (system_rev < HWREV_FOR_BATTERY)
 		return -ENODEV;
-
+#endif
 	s3c_gpio_cfgpin(GPIO_CHG_EN, S3C_GPIO_OUTPUT);
 	s3c_gpio_setpull(GPIO_CHG_EN, S3C_GPIO_PULL_NONE);
 	gpio_set_value(GPIO_CHG_EN, GPIO_LEVEL_LOW);
@@ -4740,7 +4714,7 @@ struct gpio_keys_button c1_buttons[] = {
 		.gpio = GPIO_nPOWER,
 		.active_low = 1,
 		.type = EV_KEY,
-		.wakeup = 1,
+	  .wakeup=1,
 	}, {
 		.code = KEY_HOME,
 		.gpio = GPIO_OK_KEY,
@@ -4761,19 +4735,23 @@ struct platform_device c1_keypad = {
 	.dev.platform_data = &c1_keypad_platform_data,
 };
 
-#ifdef CONFIG_SEC_DEV_JACK
 static void sec_set_jack_micbias(bool on)
 {
 #ifdef CONFIG_SND_SOC_USE_EXTERNAL_MIC_BIAS
+#if defined(CONFIG_MACH_C1_KOR_LGT)||defined(CONFIG_MACH_C1_KOR_KT)
+	gpio_set_value(GPIO_EAR_MIC_BIAS_EN, on);
+#else
 	if (system_rev >= 3)
 		gpio_set_value(GPIO_EAR_MIC_BIAS_EN, on);
 	else
 		gpio_set_value(GPIO_MIC_BIAS_EN, on);
 #endif
+#endif
 
 	return;
 }
 
+#ifdef CONFIG_SEC_DEV_JACK
 static struct sec_jack_zone sec_jack_zones[] = {
 	{
 		/* adc == 0, unstable zone, default to 3pole if it stays
@@ -4860,6 +4838,17 @@ static struct platform_device sec_device_jack = {
 	.dev.platform_data	= &sec_jack_data,
 };
 #endif	/* #ifdef CONFIG_SEC_DEV_JACK */
+
+
+#if defined(CONFIG_SAMSUNG_PHONE_MODEMCTL)
+/**********************/
+/* dpram platform device*/
+struct platform_device sec_device_dpram = {
+	.name	= "dpram-device",
+	.id		= -1,
+};
+/*********************/
+#endif /* CONFIG_SAMSUNG_PHONE_MODEMCTL */
 
 static struct resource pmu_resource[] = {
 	[0] = {
@@ -5085,6 +5074,10 @@ static struct platform_device *smdkc210_devices[] __initdata = {
 	&c1_keypad,
 	&sec_device_rfkill,
 
+#if defined(CONFIG_SAMSUNG_PHONE_MODEMCTL)
+	&sec_device_dpram,
+#endif /* CONFIG_SAMSUNG_PHONE_MODEMCTL */
+
 #ifdef CONFIG_HAVE_PWM
 	&s3c_device_timer[0],
 	&s3c_device_timer[1],
@@ -5171,25 +5164,44 @@ struct gpio_init_data {
 	uint drv;
 };
 
+extern int s3c_gpio_slp_cfgpin(unsigned int pin, unsigned int config);
+extern int s3c_gpio_slp_setpull_updown(unsigned int pin, unsigned int config);
+
 static struct gpio_init_data c1_init_gpios[] = {
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	{
+	 	.num	= S5PV310_GPA0(4),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPA0(5), /* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPA0(7),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.val	= S3C_GPIO_SETPIN_ZERO,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	},
+#endif	
 #if defined(CONFIG_TDMB)
 	{
-	/* TDMB_INT */
-		.num	= S5PV310_GPB(4),
+		.num	= S5PV310_GPB(4),    /* TDMB_INT */
 		.cfg	= S3C_GPIO_OUTPUT,
 		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
 	}, {
-	/* TDMB_RST_N */
-		.num	= S5PV310_GPB(5),
+		.num	= S5PV310_GPB(5),    /* TDMB_RST_N */
 		.cfg	= S3C_GPIO_OUTPUT,
 		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
 	}, {
-	/* TDMB_EN*/
-		.num	= S5PV310_GPC0(1),
+		.num	= S5PV310_GPC0(1),	/* TDMB_EN*/
 		.cfg	= S3C_GPIO_OUTPUT,
 		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_NONE,
@@ -5197,32 +5209,54 @@ static struct gpio_init_data c1_init_gpios[] = {
 	},
 #elif defined(CONFIG_ISDBT_FC8100)
 	{
-	/* ISDBT_RST_N */
-		.num	= S5PV310_GPE1(5),
+		.num	= S5PV310_GPB(5),	/* ISDBT_RST_N */
 		.cfg	= S3C_GPIO_OUTPUT,
 		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
 	}, {
-	/* ISDBT_EN*/
-		.num	= S5PV310_GPC0(1),
+		.num	= S5PV310_GPC0(1),	/* ISDBT_EN*/
 		.cfg	= S3C_GPIO_OUTPUT,
 		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
-	},
+	},	
 #else
 	{
+		.num	= S5PV310_GPB(0),
+		.cfg	= S3C_GPIO_OUTPUT,
+		.val	= S3C_GPIO_SETPIN_ZERO,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
+	}, {
 		.num	= S5PV310_GPB(1),
-		.cfg	= S3C_GPIO_INPUT,
+		.cfg	= S3C_GPIO_OUTPUT,
+		.val	= S3C_GPIO_SETPIN_ONE,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPB(2),
+		.cfg	= S3C_GPIO_OUTPUT,
+		.val	= S3C_GPIO_SETPIN_ZERO,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPB(3),
+		.cfg	= S3C_GPIO_OUTPUT,
+		.val	= S3C_GPIO_SETPIN_ZERO,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPB(4),
+		.cfg	= S3C_GPIO_OUTPUT,
 		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
 	}, {
 		.num	= S5PV310_GPB(5),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
+		.cfg	= S3C_GPIO_OUTPUT,
+		.val	= S3C_GPIO_SETPIN_ONE,
+		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
 	},
 #endif
@@ -5238,19 +5272,28 @@ static struct gpio_init_data c1_init_gpios[] = {
 		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV2,
-	}, {
+	}, {	
 		.num	= S5PV310_GPC1(3),	/* CODEC_SDA_1.8V */
 		.cfg	= S3C_GPIO_INPUT,
 		.val	= S3C_GPIO_SETPIN_NONE,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
+	}, {	
 		.num	= S5PV310_GPC1(4),	/* CODEC_SCL_1.8V */
 		.cfg	= S3C_GPIO_INPUT,
 		.val	= S3C_GPIO_SETPIN_NONE,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
+	},  
+#if defined(CONFIG_MACH_C1_KOR_LGT)	
+	{
+	 	.num	= S5PV310_GPD0(0),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, 
+#endif
+	{
 		.num	= S5PV310_GPD0(2),	/* MSENSOR_MHL_SDA_2.8V */
 		.cfg	= S3C_GPIO_INPUT,
 		.val	= S3C_GPIO_SETPIN_NONE,
@@ -5286,7 +5329,168 @@ static struct gpio_init_data c1_init_gpios[] = {
 		.val	= S3C_GPIO_SETPIN_NONE,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
+	},
+#if defined(CONFIG_MACH_C1_KOR_LGT)	
+	{
+	 	.num	= S5PV310_GPE0(0),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
 	}, {
+	 	.num	= S5PV310_GPE0(1),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	},{
+	 	.num	= S5PV310_GPE0(2),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE0(3),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPE1(5),	/* MHL_SCL_1.8V */
+		.cfg	= S3C_GPIO_INPUT,
+		.val	= S3C_GPIO_SETPIN_NONE,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPE1(6),	/* MHL_SDA_1.8V */
+		.cfg	= S3C_GPIO_INPUT,
+		.val	= S3C_GPIO_SETPIN_NONE,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE3(0),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE3(1),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE3(2),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE3(4),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE3(5),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE3(6),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE4(0),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE4(1),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE4(2),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE4(3),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE4(4),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE4(5),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE4(6),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPE4(7),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ0(0),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ0(1),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ0(2),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ0(3),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ0(4),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ0(5),	/* NC */	 
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ0(6),	/* NC */
+	 	.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ0(7),	/* NC */	 
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ1(0), /* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ1(1),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+	 	.num	= S5PV310_GPJ1(2),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	},
+#endif	
+	{
 		.num	= S5PV310_GPK1(1),
 		.cfg	= S3C_GPIO_OUTPUT,
 		.val	= S3C_GPIO_SETPIN_ZERO,
@@ -5298,7 +5502,7 @@ static struct gpio_init_data c1_init_gpios[] = {
 		.val	= S3C_GPIO_SETPIN_NONE,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
-	},{
+	}, {
 		.num	= S5PV310_GPK3(1),	/* WLAN_SDIO_CMD */
 		.cfg	= S3C_GPIO_INPUT,
 		.val	= S3C_GPIO_SETPIN_NONE,
@@ -5334,14 +5538,40 @@ static struct gpio_init_data c1_init_gpios[] = {
 		.val	= S3C_GPIO_SETPIN_NONE,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
-	},{
-		.num	= S5PV310_GPX0(1),	/* VOL_UP */
+	}, 
+#if defined(CONFIG_MACH_C1_KOR_LGT)	
+	{
+		.num = S5PV310_GPL0(2),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,		
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num = S5PV310_GPL1(1),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,		
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	},
+#endif
+	{
+		.num = S5PV310_GPL2(2), /* CHG_EN */
+		.cfg	= S3C_GPIO_OUTPUT,
+		.val	= S3C_GPIO_SETPIN_ZERO,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
+	}, {
+		.num = S5PV310_GPL2(4), /* CHG_ING_N */
 		.cfg	= S3C_GPIO_INPUT,
 		.val	= S3C_GPIO_SETPIN_NONE,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
-	},{
-		.num	= S5PV310_GPX0(2),	/* VOL_DOWN */
+	}, {
+		.num = S5PV310_GPL2(5), /* TA_nCONNECTED */
+		.cfg	= S3C_GPIO_INPUT,
+		.val	= S3C_GPIO_SETPIN_NONE,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPX0(2),	/* PS_ALS_INT */
 		.cfg	= S3C_GPIO_INPUT,
 		.val	= S3C_GPIO_SETPIN_NONE,
 		.pud	= S3C_GPIO_PULL_NONE,
@@ -5353,8 +5583,38 @@ static struct gpio_init_data c1_init_gpios[] = {
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
 	}, {
+		.num	= S5PV310_GPX0(7),	/* AP_PMIC_IRQ */
+		.cfg	= S3C_GPIO_INPUT,
+		.val	= S3C_GPIO_SETPIN_NONE,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPX1(0),	/* AP_INT_N */
+		.cfg	= S3C_GPIO_INPUT,
+		.val	= S3C_GPIO_SETPIN_NONE,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPX2(0),	/* VOL_UP */
+		.cfg	= S3C_GPIO_INPUT,
+		.val	= S3C_GPIO_SETPIN_NONE,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPX2(1),	/* VOL_DOWN */
+		.cfg	= S3C_GPIO_INPUT,
+		.val	= S3C_GPIO_SETPIN_NONE,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
 		/* TODO: remove belows if max17042 would be ready */
 		.num	= S5PV310_GPX2(3),	/* GPIO_FUEL_ALERT */
+		.cfg	= S3C_GPIO_INPUT,
+		.val	= S3C_GPIO_SETPIN_NONE,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV1,
+	}, {
+		.num	= S5PV310_GPX2(7),	/* nPOWER */
 		.cfg	= S3C_GPIO_INPUT,
 		.val	= S3C_GPIO_SETPIN_NONE,
 		.pud	= S3C_GPIO_PULL_NONE,
@@ -5378,198 +5638,76 @@ static struct gpio_init_data c1_init_gpios[] = {
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
 	}, {
-		.num	= S5PV310_GPX3(4),
+		.num	= S5PV310_GPX3(4),	/* T_FLASH_DET */
 		.cfg	= S3C_GPIO_INPUT,
 		.val	= S3C_GPIO_SETPIN_NONE,
 		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {	/*GPY0 */
-		.num	= S5PV310_GPY0(2),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
 	}, {
-		.num	= S5PV310_GPY0(3),
+		.num	= S5PV310_GPX3(5),	/* OK_KEY */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
+		.val	= S3C_GPIO_SETPIN_NONE,
+		.pud	= S3C_GPIO_PULL_NONE,
 		.drv	= S5P_GPIO_DRVSTR_LV1,
+	},
+#if defined(CONFIG_MACH_C1_KOR_LGT)	
+	{
+		.num = S5PV310_GPY0(1),	/* NC */
+		.cfg	= S3C_GPIO_INPUT,
+		.pud	= S3C_GPIO_PULL_DOWN,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY0(4),
+		.num = S5PV310_GPY1(3),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY0(5),
+		.num = S5PV310_GPY2(0),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {	/*GPY1 */
-		.num	= S5PV310_GPY1(0),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY1(1),
+		.num = S5PV310_GPY2(1),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY1(2),
+		.num = S5PV310_GPY2(2),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
+		.pud	= S3C_GPIO_PULL_NONE,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY1(3),
+		.num = S5PV310_GPY2(3),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {	/*GPY2 */
-		.num	= S5PV310_GPY2(0),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY2(1),
+		.num = S5PV310_GPY2(4),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY2(2),
+		.num = S5PV310_GPY2(5),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY2(3),
+		.num = S5PV310_GPY4(5),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY2(4),
+		.num = S5PV310_GPY4(6),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
+		.drv	= S5P_GPIO_DRVSTR_LV2,
 	}, {
-		.num	= S5PV310_GPY2(5),
+		.num = S5PV310_GPY4(7),	/* NC */
 		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
 		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {	/*GPY4 */
-		.num	= S5PV310_GPY4(4),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {	/*GPY5 */
-		.num	= S5PV310_GPY5(0),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY5(1),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY5(2),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY5(3),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY5(4),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY5(5),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY5(6),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY5(7),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {	/*GPY6 */
-		.num	= S5PV310_GPY6(0),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY6(1),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY6(2),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY6(3),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY6(4),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY6(5),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY6(6),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}, {
-		.num	= S5PV310_GPY6(7),
-		.cfg	= S3C_GPIO_INPUT,
-		.val	= S3C_GPIO_SETPIN_ZERO,
-		.pud	= S3C_GPIO_PULL_DOWN,
-		.drv	= S5P_GPIO_DRVSTR_LV1,
-	}
+		.drv	= S5P_GPIO_DRVSTR_LV2,
+	},
+#endif	
 };
 
 static void c1_config_gpio_table(void)
@@ -5592,7 +5730,286 @@ static void c1_config_gpio_table(void)
 	}
 }
 
+
+#if defined(CONFIG_MACH_C1_KOR_LGT)	
 /* this table only for c1 board */
+static unsigned int c1_sleep_gpio_table[][3] = {
+	{ S5PV310_GPA0(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_UP},		// BT_UART_RXD
+	{ S5PV310_GPA0(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// BT_UART_TXD
+	{ S5PV310_GPA0(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// BT_UART_CTS
+	{ S5PV310_GPA0(3),  S3C_GPIO_SLP_OUT1,	S3C_GPIO_PULL_NONE},	// BT_UART_RTS
+	{ S5PV310_GPA0(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPA0(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPA0(6),  S3C_GPIO_SLP_PREV,	S3C_GPIO_PULL_NONE},	// BOOT_SW_SEL
+	{ S5PV310_GPA0(7),  S3C_GPIO_SLP_INPUT, 	S3C_GPIO_PULL_DOWN},	// NC
+
+	{ S5PV310_GPA1(0),  S3C_GPIO_SLP_OUT0, 	S3C_GPIO_PULL_NONE},	// AP_RXD
+	{ S5PV310_GPA1(1),  S3C_GPIO_SLP_OUT0, 	S3C_GPIO_PULL_NONE},	// AP_TXD
+	{ S5PV310_GPA1(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},    	// TSP_SDA_2.8V
+	{ S5PV310_GPA1(3),  S3C_GPIO_SLP_OUT0, 	S3C_GPIO_PULL_NONE},	// TSP_SCL_2.8V
+	{ S5PV310_GPA1(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// AP_FLM_RXD_2.8V
+	{ S5PV310_GPA1(5),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// AP_FLM_TXD_2.8V
+
+#if !defined(CONFIG_TDMB) && !defined(CONFIG_ISDBT_FC8100)
+	{ S5PV310_GPB(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},
+	{ S5PV310_GPB(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_UP},		// FM_INT
+	{ S5PV310_GPB(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},
+	{ S5PV310_GPB(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},
+	{ S5PV310_GPB(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPB(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+#else //esper,2011-01-24 for KOR TDMB
+	{ S5PV310_GPB(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// TDMB_SPI_CLK
+	{ S5PV310_GPB(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// TDMB_SPI_CS
+	{ S5PV310_GPB(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// TDMB_SPI_DO
+	{ S5PV310_GPB(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// TDMB_SPI_DI
+	{ S5PV310_GPB(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// TDMB_SPI_INT
+	{ S5PV310_GPB(5),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// TDMB_RST_N
+#endif
+	{ S5PV310_GPB(6),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// AP_PMIC_SDA(pull-up)
+	{ S5PV310_GPB(7),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// AP_PMIC_SCL(pull-up)
+
+	{ S5PV310_GPC0(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// REC__PCM_CLK
+#ifdef CONFIG_TDMB //esper,2011-01-24 for KOR TDMB
+	{ S5PV310_GPC0(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// TDMB_EN
+#else
+	{ S5PV310_GPC0(1),	S3C_GPIO_SLP_INPUT, S3C_GPIO_PULL_DOWN},		// NC
+#endif
+	{ S5PV310_GPC0(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// REC_PCM_SYNC
+	{ S5PV310_GPC0(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// REC_PCM_IN
+	{ S5PV310_GPC0(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// REC_PCM_OUT
+
+	{ S5PV310_GPC1(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// VT_SDA_1.8V(pull-up)
+	{ S5PV310_GPC1(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// CP_ON
+	{ S5PV310_GPC1(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// VT_SCL_1.8V(pull-up)
+	{ S5PV310_GPC1(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// CODEC_SDA_1.8V(pull-up)
+	{ S5PV310_GPC1(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// CODEC_SCL_1.8V(pull-up)
+
+	{ S5PV310_GPD0(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPD0(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// VIBTONE_PWM
+	{ S5PV310_GPD0(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// MSENSOR_MHL_SDA_28V(pull-up)
+	{ S5PV310_GPD0(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// MSENSOR_MHL_SCL_28V(pull-up)
+
+	{ S5PV310_GPD1(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// 8M_CAM_SDA_2.8V(pull-up)
+	{ S5PV310_GPD1(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// 8M_CAM_SCL_2.8V(pull-up)
+	{ S5PV310_GPD1(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// SENSE_SDA_2.8V(pull-up)
+	{ S5PV310_GPD1(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// SENSE_SCL_2.8V(pull-up)
+
+	{ S5PV310_GPE0(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPE0(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPE0(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPE0(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC	
+	{ S5PV310_GPE0(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// ISP_RESET
+
+	{ S5PV310_GPE1(0),  S3C_GPIO_SLP_INPUT, S3C_GPIO_PULL_NONE},		// HW_REV0(pull-up)
+	{ S5PV310_GPE1(1),  S3C_GPIO_SLP_INPUT, S3C_GPIO_PULL_NONE},		// HW_REV1(pull-up)
+	{ S5PV310_GPE1(2),  S3C_GPIO_SLP_INPUT, S3C_GPIO_PULL_NONE},		// HW_REV2(pull-up)
+	{ S5PV310_GPE1(3),  S3C_GPIO_SLP_INPUT, S3C_GPIO_PULL_NONE},		// HW_REV3(pull-up)
+	{ S5PV310_GPE1(4),  S3C_GPIO_SLP_PREV,	S3C_GPIO_PULL_NONE},	// MICBAIS_EN
+	{ S5PV310_GPE1(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// MHL_SCL_1.8V(pull-up)
+	{ S5PV310_GPE1(6),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// MHL_SDA_1.8V(pull-up)
+	{ S5PV310_GPE1(7),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// FUEL_SDA_1.8V(pull-up)
+
+	{ S5PV310_GPE2(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// FUEL_SCL_1.8V(pull-up)
+	{ S5PV310_GPE2(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// CAM_IO_EN
+	{ S5PV310_GPE2(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// VT_CAM_1.5V_EN
+	{ S5PV310_GPE2(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_SCLK
+	{ S5PV310_GPE2(4),  S3C_GPIO_SLP_PREV,	S3C_GPIO_PULL_NONE},	// EAR_MICBIAS_EN
+	{ S5PV310_GPE2(5),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// 8M_1.2V_EN
+
+	{ S5PV310_GPE3(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE3(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE3(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE3(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE3(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE3(5),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE3(6),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE3(7),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+
+	{ S5PV310_GPE4(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE4(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE4(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE4(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE4(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE4(5),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE4(6),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+	{ S5PV310_GPE4(7),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// Reserved for DPRAM USE only
+
+	{ S5PV310_GPF0(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_HSYNC
+	{ S5PV310_GPF0(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_VSYNC
+	{ S5PV310_GPF0(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_DE
+	{ S5PV310_GPF0(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_PCLK
+	{ S5PV310_GPF0(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(0)
+	{ S5PV310_GPF0(5),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(1)
+	{ S5PV310_GPF0(6),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(2)
+	{ S5PV310_GPF0(7),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(3)
+
+	{ S5PV310_GPF1(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(4)
+	{ S5PV310_GPF1(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(5)
+	{ S5PV310_GPF1(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(6)
+	{ S5PV310_GPF1(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(7)
+	{ S5PV310_GPF1(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(8)
+	{ S5PV310_GPF1(5),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(9)
+	{ S5PV310_GPF1(6),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(10)
+	{ S5PV310_GPF1(7),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(11)
+
+	{ S5PV310_GPF2(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(12)
+	{ S5PV310_GPF2(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(13)
+	{ S5PV310_GPF2(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(14)
+	{ S5PV310_GPF2(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(15)
+	{ S5PV310_GPF2(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(16)
+	{ S5PV310_GPF2(5),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(17)
+	{ S5PV310_GPF2(6),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(18)
+	{ S5PV310_GPF2(7),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(19)
+
+	{ S5PV310_GPF3(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(20)
+	{ S5PV310_GPF3(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(21)
+	{ S5PV310_GPF3(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(22)
+	{ S5PV310_GPF3(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_D(23)
+	{ S5PV310_GPF3(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// MHL_RST
+	{ S5PV310_GPF3(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// MHL_INT
+	
+	{ S5PV310_GPJ0(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ0(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ0(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ0(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ0(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ0(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ0(6),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ0(7),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+
+	{ S5PV310_GPJ1(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ1(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ1(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPJ1(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// CAM_MCLK
+	{ S5PV310_GPJ1(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// MHL_WAKE_UP
+
+	{ S5PV310_GPK0(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_CLK
+	{ S5PV310_GPK0(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_CMD
+	{ S5PV310_GPK0(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// EMMC_LDO_EN
+	{ S5PV310_GPK0(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_D(0)
+	{ S5PV310_GPK0(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_D(1)
+	{ S5PV310_GPK0(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_D(2)
+	{ S5PV310_GPK0(6),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_D(3)
+
+	{ S5PV310_GPK1(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// 3_TOUCH_SCL_2.8V
+	{ S5PV310_GPK1(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// 8M_AF_2.8V_EN
+	{ S5PV310_GPK1(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// 3_TOUCH_SDA_2.8V
+	{ S5PV310_GPK1(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_D(4)
+	{ S5PV310_GPK1(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_D(5)
+	{ S5PV310_GPK1(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_D(6)
+	{ S5PV310_GPK1(6),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NAND_D(7)
+
+	{ S5PV310_GPK2(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// T_FLASH_CLK
+	{ S5PV310_GPK2(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// T_FLASH_CMD
+	{ S5PV310_GPK2(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// PS_ALS_SDA_2.8V(pull-up)
+	{ S5PV310_GPK2(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// T_FLASH_D(0)
+	{ S5PV310_GPK2(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// T_FLASH_D(1)	
+	{ S5PV310_GPK2(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// T_FLASH_D(2)
+	{ S5PV310_GPK2(6),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// T_FLASH_D(3)
+
+	{ S5PV310_GPK3(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// WLAN_SDIO_CLK
+	{ S5PV310_GPK3(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// WLAN_SDIO_CMD(pull-up)
+	{ S5PV310_GPK3(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// PS_ALS_SCL_2.8V(pull-up)
+	{ S5PV310_GPK3(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// WLAN_SDIO_D(0)(pull-up)
+	{ S5PV310_GPK3(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// WLAN_SDIO_D(1)(pull-up)
+	{ S5PV310_GPK3(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// WLAN_SDIO_D(2)(pull-up)
+	{ S5PV310_GPK3(6),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// WLAN_SDIO_D(3)(pull-up)
+
+	{ S5PV310_GPL0(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// BUCK2_EN
+	{ S5PV310_GPL0(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// MHL_SEL
+	{ S5PV310_GPL0(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPL0(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// TSP_LDO_ON	
+	{ S5PV310_GPL0(4),  S3C_GPIO_SLP_PREV,	S3C_GPIO_PULL_NONE},	// BT_EN
+	{ S5PV310_GPL0(5),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// 3_TOUCH_INT
+	{ S5PV310_GPL0(6),  S3C_GPIO_SLP_PREV,	S3C_GPIO_PULL_NONE},	// USB_SEL
+	{ S5PV310_GPL0(7),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// OLED_DET
+
+	{ S5PV310_GPL1(0),  S3C_GPIO_SLP_PREV,	S3C_GPIO_PULL_NONE},	// BT_NRST
+	{ S5PV310_GPL1(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPL1(2),  S3C_GPIO_SLP_PREV,	S3C_GPIO_PULL_NONE},	// WLAN_EN
+
+	{ S5PV310_GPL2(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// CAM_VT_nSTBY
+	{ S5PV310_GPL2(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// CAM_VT_nRST
+#ifdef CONFIG_MAX8922_CHARGER
+	{ S5PV310_GPL2(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// CHG_EN
+#else
+	{ S5PV310_GPL2(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+#endif
+	{ S5PV310_GPL2(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// DOUBLE_RR
+#ifdef	CONFIG_MAX8922_CHARGER
+	{ S5PV310_GPL2(4),  S3C_GPIO_SLP_PREV,	S3C_GPIO_PULL_NONE},	// CHG_ING_N
+	{ S5PV310_GPL2(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// TA_nCONNECTED
+#else
+	{ S5PV310_GPL2(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPL2(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+#endif
+	{ S5PV310_GPL2(6),  S3C_GPIO_SLP_OUT1,	S3C_GPIO_PULL_NONE},	// CP_RESET_N
+
+	{ S5PV310_GPY0(0),  S3C_GPIO_SLP_OUT1,	S3C_GPIO_PULL_NONE}, 	// AP_CS_N(SROMC, pull-up)
+	{ S5PV310_GPY0(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPY0(2),  S3C_GPIO_SLP_OUT1,	S3C_GPIO_PULL_NONE},	// POP_nCS
+	{ S5PV310_GPY0(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	// LCD_nCS
+	{ S5PV310_GPY0(4),  S3C_GPIO_SLP_OUT1,	S3C_GPIO_PULL_NONE}, 	// AP_OE_N(SROMC)
+	{ S5PV310_GPY0(5),  S3C_GPIO_SLP_OUT1,	S3C_GPIO_PULL_NONE}, 	// AP_WE_N(SROMC)
+
+	{ S5PV310_GPY1(0),  S3C_GPIO_SLP_OUT1,	S3C_GPIO_PULL_NONE}, 	// AP_LB_N(SROMC)
+	{ S5PV310_GPY1(1),  S3C_GPIO_SLP_OUT1,	S3C_GPIO_PULL_NONE}, 	// AP_UB_N(SROMC)
+	{ S5PV310_GPY1(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN}, 	// AP_BUSY_EN(SROMC)
+	{ S5PV310_GPY1(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+
+	{ S5PV310_GPY2(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPY2(1),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPY2(2),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_NONE},	// ONENAND_INT(pull-up)
+	{ S5PV310_GPY2(3),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPY2(4),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPY2(5),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+
+	{ S5PV310_GPY3(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(0)
+	{ S5PV310_GPY3(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(1)
+	{ S5PV310_GPY3(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(2)
+	{ S5PV310_GPY3(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(3)
+	{ S5PV310_GPY3(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(4)
+	{ S5PV310_GPY3(5),  S3C_GPIO_SLP_OUT0, 	S3C_GPIO_PULL_NONE},	//XM0_A1(5)
+	{ S5PV310_GPY3(6),  S3C_GPIO_SLP_OUT0, 	S3C_GPIO_PULL_NONE},	//XM0_A1(6)
+	{ S5PV310_GPY3(7),  S3C_GPIO_SLP_OUT0, 	S3C_GPIO_PULL_NONE},	//XM0_A1(7)
+
+	{ S5PV310_GPY4(0),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(8)
+	{ S5PV310_GPY4(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(9)
+	{ S5PV310_GPY4(2),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(10)
+	{ S5PV310_GPY4(3),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(11)
+	{ S5PV310_GPY4(4),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},	//XM0_A1(12)
+	{ S5PV310_GPY4(5),  S3C_GPIO_SLP_OUT0, 	S3C_GPIO_PULL_NONE},	//XM0_A1(13)
+	{ S5PV310_GPY4(6),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC
+	{ S5PV310_GPY4(7),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_DOWN},	// NC	
+
+	{ S5PV310_GPY5(0),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(0)
+	{ S5PV310_GPY5(1),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(1)
+	{ S5PV310_GPY5(2),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(2)
+	{ S5PV310_GPY5(3),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(3)
+	{ S5PV310_GPY5(4),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(4)
+	{ S5PV310_GPY5(5),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(5)
+	{ S5PV310_GPY5(6),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(6)
+	{ S5PV310_GPY5(7),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(7)
+
+	{ S5PV310_GPY6(0),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(8)
+	{ S5PV310_GPY6(1),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(9)
+	{ S5PV310_GPY6(2),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(10)
+	{ S5PV310_GPY6(3),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(11)
+	{ S5PV310_GPY6(4),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(12)
+	{ S5PV310_GPY6(5),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(13)
+	{ S5PV310_GPY6(6),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(14)
+	{ S5PV310_GPY6(7),	S3C_GPIO_SLP_OUT0, S3C_GPIO_PULL_NONE},		// XM0_D1(15)
+
+	{ S5PV310_GPZ(0),  S3C_GPIO_SLP_OUT0,  S3C_GPIO_PULL_NONE},		// MM_I2S_CLK
+	{ S5PV310_GPZ(1),  S3C_GPIO_SLP_INPUT, S3C_GPIO_PULL_DOWN},		// NC
+	{ S5PV310_GPZ(2),  S3C_GPIO_SLP_OUT0,  S3C_GPIO_PULL_NONE},		// MM_I2S_SYNC
+	{ S5PV310_GPZ(3),  S3C_GPIO_SLP_OUT0,  S3C_GPIO_PULL_NONE},		// MM_I2S_DI
+	{ S5PV310_GPZ(4),  S3C_GPIO_SLP_OUT0,  S3C_GPIO_PULL_NONE},		// MM_I2S_DO
+	{ S5PV310_GPZ(5),  S3C_GPIO_SLP_INPUT, S3C_GPIO_PULL_DOWN},		// NC
+	{ S5PV310_GPZ(6),  S3C_GPIO_SLP_INPUT, S3C_GPIO_PULL_DOWN},		// NC
+};
+#else	/* not defined CONFIG_MACH_C1_KOR_LGT */
+	/* this table only for c1 board */
 static unsigned int c1_sleep_gpio_table[][3] = {
 	{ S5PV310_GPA0(0),  S3C_GPIO_SLP_INPUT,	S3C_GPIO_PULL_UP},
 	{ S5PV310_GPA0(1),  S3C_GPIO_SLP_OUT0,	S3C_GPIO_PULL_NONE},
@@ -5909,7 +6326,7 @@ static unsigned int c1_sleep_gpio_table[][3] = {
 	{ S5PV310_GPX1(7),  S3C_GPIO_SLP_INPUT, S3C_GPIO_PULL_DOWN},	/* NC */
 #endif
 };
-
+#endif
 
 extern int s3c_gpio_slp_cfgpin(unsigned int pin, unsigned int config);
 extern int s3c_gpio_slp_setpull_updown(unsigned int pin, unsigned int config);
@@ -5977,39 +6394,39 @@ static void smdkc210_power_off(void)
 #define REBOOT_MODE_RECOVERY	4
 #define REBOOT_MODE_ARM11_FOTA	5
 
-static void c1_reboot(char str, const char *cmd)
+static int c1_reboot_notifier_call(struct notifier_block *this,
+				   unsigned long code, void *_cmd)
 {
-	pr_emerg("%s (%d, %s)\n", __func__, str, cmd ? cmd : "(null)");
-
 	writel(0x12345678, S5P_INFORM2);	/* Don't enter lpm mode */
 
-	if (!cmd) {
-		writel(REBOOT_PREFIX | REBOOT_MODE_NONE, S5P_INFORM3);
-	} else {
-		if (!strcmp(cmd, "arm11_fota"))
-			writel(REBOOT_PREFIX | REBOOT_MODE_ARM11_FOTA,
-			       S5P_INFORM3);
-		else if (!strcmp(cmd, "recovery"))
-			writel(REBOOT_PREFIX | REBOOT_MODE_RECOVERY,
-			       S5P_INFORM3);
-		else if (!strcmp(cmd, "download"))
-			writel(REBOOT_PREFIX | REBOOT_MODE_DOWNLOAD,
-			       S5P_INFORM3);
-		else if (!strcmp(cmd, "upload"))
-			writel(REBOOT_PREFIX | REBOOT_MODE_UPLOAD,
-			       S5P_INFORM3);
-		else
-			writel(REBOOT_PREFIX | REBOOT_MODE_NONE,
-			       S5P_INFORM3);
+	if (code == SYS_RESTART) {
+		if (!_cmd) {
+			writel(REBOOT_PREFIX | REBOOT_MODE_NONE, S5P_INFORM3);
+		} else {
+			if (!strcmp((char *)_cmd, "arm11_fota"))
+				writel(REBOOT_PREFIX | REBOOT_MODE_ARM11_FOTA,
+				       S5P_INFORM3);
+			else if (!strcmp((char *)_cmd, "recovery"))
+				writel(REBOOT_PREFIX | REBOOT_MODE_RECOVERY,
+				       S5P_INFORM3);
+			else if (!strcmp((char *)_cmd, "download"))
+				writel(REBOOT_PREFIX | REBOOT_MODE_DOWNLOAD,
+				       S5P_INFORM3);
+			else if (!strcmp((char *)_cmd, "upload"))
+				writel(REBOOT_PREFIX | REBOOT_MODE_UPLOAD,
+				       S5P_INFORM3);
+			else
+				writel(REBOOT_PREFIX | REBOOT_MODE_NONE,
+				       S5P_INFORM3);
+		}
 	}
 
-	flush_cache_all();
-	outer_flush_all();
-	arch_reset(0, 0);
-
-	pr_emerg("%s: waiting for reboot\n", __func__);
-	while (1);
+	return NOTIFY_DONE;
 }
+
+static struct notifier_block c1_reboot_notifier = {
+	.notifier_call = c1_reboot_notifier_call,
+};
 
 static void c1_config_sleep_gpio_table(void)
 {
@@ -6019,6 +6436,19 @@ static void c1_config_sleep_gpio_table(void)
 */
 	config_sleep_gpio_table(ARRAY_SIZE(c1_sleep_gpio_table),
 			c1_sleep_gpio_table);
+
+	if(system_rev >= 0x4)
+	{
+		/* Change the power source of TSP_SDA_2.8V and TSP_SCL_2.8V */
+		/* (VCC_2.8V_PDA -> TSP_VDD_2.8V) */
+		s3c_gpio_slp_cfgpin(S5PV310_GPA1(2), S3C_GPIO_SLP_OUT0);
+		s3c_gpio_slp_setpull_updown(S5PV310_GPA1(2), S3C_GPIO_PULL_NONE);
+		s3c_gpio_slp_cfgpin(S5PV310_GPA1(3), S3C_GPIO_SLP_OUT0);
+		s3c_gpio_slp_setpull_updown(S5PV310_GPA1(3), S3C_GPIO_PULL_NONE);
+		// sub mic 
+		s3c_gpio_slp_cfgpin(S5PV310_GPE0(2), S3C_GPIO_SLP_PREV);
+		s3c_gpio_slp_setpull_updown(S5PV310_GPE0(2), S3C_GPIO_PULL_NONE);  
+	}
 }
 
 static void __init universal_tsp_init(void)
@@ -6050,6 +6480,11 @@ static void __init usb_device_init(void)
 	struct usb_mass_storage_platform_data *ums_pdata =
 	    s3c_device_usb_mass_storage.dev.platform_data;
 	if (ums_pdata) {
+#if defined(CONFIG_MACH_C1_KOR_LGT)||defined(CONFIG_MACH_C1_KOR_KT)
+		printk(KERN_DEBUG "nluns is changed to %d from %d.\n",
+			       2, ums_pdata->nluns);
+		ums_pdata->nluns = 2;
+#else
 		printk(KERN_DEBUG "%s: default luns=%d, system_rev=%d\n",
 		       __func__, ums_pdata->nluns, system_rev);
 		if (system_rev >= 0x3) {
@@ -6057,6 +6492,7 @@ static void __init usb_device_init(void)
 			       2, ums_pdata->nluns);
 			ums_pdata->nluns = 2;
 		}
+#endif
 	} else {
 		printk(KERN_DEBUG "I can't find s3c_device_usb_mass_storage\n");
 	}
@@ -6073,7 +6509,6 @@ static void __init smdkc210_machine_init(void)
 
 	/* to support system shut down */
 	pm_power_off = smdkc210_power_off;
-	arm_pm_restart = c1_reboot;
 
 	/* initialise the gpios */
 	c1_config_gpio_table();
@@ -6316,6 +6751,8 @@ static void __init smdkc210_machine_init(void)
 	mipi_fb_init();
 #endif
 
+	register_reboot_notifier(&c1_reboot_notifier);
+
 	c1_sec_switch_init();
 	uart_switch_init();
 	c1_sound_init();
@@ -6484,9 +6921,15 @@ static void __init s5pv310_reserve(void)
 }
 #endif
 
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+#define MODEL_NAME "SHW-M250L" 
+#elif defined(CONFIG_MACH_C1_KOR_KT)
 #define MODEL_NAME "SHW-M250K"
+#else 
+#define MODEL_NAME "SMDKC210"
+#endif
+
 MACHINE_START(C1, MODEL_NAME)
-//MACHINE_START(C1, "SMDKC210")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	.phys_io	= S3C_PA_UART & 0xfff00000,
 	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
@@ -6526,10 +6969,12 @@ static void s3c_setup_uart_cfg_gpio(struct platform_device *pdev)
 		break;
 
 	case 1:
+#if !defined(CONFIG_MACH_C1_KOR_LGT)
 		s3c_gpio_cfgpin(GPIO_GPS_RXD, S3C_GPIO_SFN(GPIO_GPS_RXD_AF));
 		s3c_gpio_setpull(GPIO_GPS_RXD, S3C_GPIO_PULL_UP);
 		s3c_gpio_cfgpin(GPIO_GPS_TXD, S3C_GPIO_SFN(GPIO_GPS_TXD_AF));
 		s3c_gpio_setpull(GPIO_GPS_TXD, S3C_GPIO_PULL_NONE);
+#endif		
 #if defined(CONFIG_MACH_C1_REV00)
 		s3c_gpio_cfgpin(GPIO_GPS_CTS, S3C_GPIO_SFN(GPIO_GPS_CTS_AF));
 		s3c_gpio_setpull(GPIO_GPS_CTS, S3C_GPIO_PULL_NONE);

@@ -40,6 +40,7 @@ obj-$(CONFIG_MACH_C1)		+= c1-panel.o
 obj-$(CONFIG_MACH_C1)		+= c1-wlan.o
 obj-$(CONFIG_MACH_C1)		+= c1-regulator-consumer.o
 obj-$(CONFIG_SAMSUNG_PHONE_SVNET)	+= c1-modem.o
+obj-$(CONFIG_SAMSUNG_PHONE_MODEMCTL)	+= c1-modem.o
 
 # device support
 obj-$(CONFIG_S5PV310_SETUP_FB_S3C)	+= setup-fb.o

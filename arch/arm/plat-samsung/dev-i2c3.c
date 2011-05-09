@@ -49,16 +49,34 @@ static struct s3c2410_platform_i2c default_i2c_data3 __initdata = {
 	.flags		= 0,
 	.bus_num	= 3,
 	.slave_addr	= 0x10,
-	.frequency	= 400*1000,
+	.frequency	= 100*1000,
 	.sda_delay	= 100,
 };
 
 void __init s3c_i2c3_set_platdata(struct s3c2410_platform_i2c *pd)
 {
 	struct s3c2410_platform_i2c *npd;
-
+	
+#if defined(CONFIG_MACH_C1_KOR_LGT)
 	if (!pd)
-		pd = &default_i2c_data3;
+		{
+		if (system_rev <= 0x03)
+			{
+			pd = &default_i2c_data3;
+			}
+		else
+			{
+			default_i2c_data3.frequency = 400*1000;
+			pd = &default_i2c_data3;
+			}
+		}
+	printk(KERN_ERR "%s: system_rev = %d\n", __func__,system_rev);
+#else
+
+    if (!pd)
+    	pd = &default_i2c_data3;
+
+#endif
 
 	npd = kmemdup(pd, sizeof(struct s3c2410_platform_i2c), GFP_KERNEL);
 	if (!npd)

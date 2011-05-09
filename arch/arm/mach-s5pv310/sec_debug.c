@@ -145,6 +145,15 @@ static int checksum_sched_log()
 	for (i = 0; i < sizeof(gExcpTaskLog); i++)
 		sum += *((char *)gExcpTaskLog + i);
 
+	for (i = 0; i < sizeof(gExcpIrqLog); i++)
+		sum += *((char *)gExcpIrqLog + i);
+
+	for (i = 0; i < sizeof(gExcpSoftIrqLog); i++)
+		sum += *((char *)gExcpSoftIrqLog + i);
+
+	for (i = 0; i < sizeof(gExcpIrqEnterExitLog); i++)
+		sum += *((char *)gExcpIrqEnterExitLog + i);
+
 	return sum;
 }
 #else
