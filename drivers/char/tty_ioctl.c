@@ -103,12 +103,12 @@ EXPORT_SYMBOL(tty_driver_flush_buffer);
 
 void tty_throttle(struct tty_struct *tty)
 {
-	mutex_lock(&tty->termios_mutex);
+//	mutex_lock(&tty->termios_mutex);
 	/* check TTY_THROTTLED first so it indicates our state */
 	if (!test_and_set_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->throttle)
 		tty->ops->throttle(tty);
-	mutex_unlock(&tty->termios_mutex);
+//	mutex_unlock(&tty->termios_mutex);
 }
 EXPORT_SYMBOL(tty_throttle);
 
@@ -127,11 +127,11 @@ EXPORT_SYMBOL(tty_throttle);
 
 void tty_unthrottle(struct tty_struct *tty)
 {
-	mutex_lock(&tty->termios_mutex);
+//	mutex_lock(&tty->termios_mutex);
 	if (test_and_clear_bit(TTY_THROTTLED, &tty->flags) &&
 	    tty->ops->unthrottle)
 		tty->ops->unthrottle(tty);
-	mutex_unlock(&tty->termios_mutex);
+//	mutex_unlock(&tty->termios_mutex);
 }
 EXPORT_SYMBOL(tty_unthrottle);
 
