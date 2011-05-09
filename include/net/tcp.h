@@ -20,6 +20,7 @@
 
 #define TCP_DEBUG 1
 #define FASTRETRANS_DEBUG 1
+#define FEATURE_SAMSUNG_LGT  // taehwan_EB19
 
 #include <linux/list.h>
 #include <linux/tcp.h>
@@ -80,7 +81,12 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCP_URG_NOTYET	0x0200
 #define TCP_URG_READ	0x0400
 
-#define TCP_RETR1	3	/*
+#ifdef FEATURE_SAMSUNG_LGT  // taehwan_EB19
+#define TCP_RETR1	4	
+#else
+#define TCP_RETR1	3	
+#endif
+              /*
 				 * This is how many retries it does before it
 				 * tries to figure out if the gateway is
 				 * down. Minimal RFC value is 3; it corresponds
@@ -125,7 +131,11 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #endif
 #define TCP_RTO_MAX	((unsigned)(120*HZ))
 #define TCP_RTO_MIN	((unsigned)(HZ/5))
+#ifdef FEATURE_SAMSUNG_LGT  // taehwan_EB19
+#define TCP_TIMEOUT_INIT ((unsigned)(1*HZ))	/* RFC 1122 initial RTO value	*/
+#else
 #define TCP_TIMEOUT_INIT ((unsigned)(3*HZ))	/* RFC 1122 initial RTO value	*/
+#endif
 
 #define TCP_RESOURCE_PROBE_INTERVAL ((unsigned)(HZ/2U)) /* Maximal interval between probes
 					                 * for local resources.
