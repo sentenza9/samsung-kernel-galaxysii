@@ -32,6 +32,8 @@
 
 #include "tdmb.h"
 
+#include <mach/cpufreq.h>
+
 
 #if defined(CONFIG_TDMB_T3700) || defined(CONFIG_TDMB_T3900)
 #include "INC_INCLUDES.h"
@@ -462,41 +464,43 @@ static void __tdmb_drv_power_off(void)
     s3c_gpio_cfgpin(GPIO_TDMB_INT, S3C_GPIO_OUTPUT);
 }
 
-void TDMBDrv_PowerInit(void)
-{
-	__tdmb_drv_power_on();
-	__tdmb_drv_power_off();
-}
 
 int TDMB_PowerOn(void)
 {
-#if defined(CONFIG_TDMB_T3700) || defined(CONFIG_TDMB_T3900)
+	int retVal = -1;
+	s5pv310_cpufreq_lock(DVFS_LOCK_ID_PM, CPU_L2);
 	DPRINTK("TDMB_PowerOn !\n");
 	__tdmb_drv_power_on();
 	DPRINTK("__tdmb_drv_power_on - OK\n");
-	TDMB_drv_Init();
-	DPRINTK("TDMB_drv_Init - OK\n");
 
+
+#if defined(CONFIG_TDMB_T3700) || defined(CONFIG_TDMB_T3900)
 	if (INC_SUCCESS != INTERFACE_INIT(TDMB_I2C_ID80)) {
 		DPRINTK("[TDMB] tdmb power on failed\n");
 		TDMB_PowerOff();
-		return FALSE;
+		retVal = 0;
 	} else {
 		DPRINTK("INTERFACE_INIT - OK\n");
 		g_TDMBGlobal.b_isTDMB_Enable = 1;
-		return TRUE;
+		retVal = 1;
 	}
 #elif defined(CONFIG_TDMB_FC8050)
 	if (DMBDrv_init() == TDMB_FAIL) {
 		DPRINTK("[TDMB] tdmb power on failed\n");
 		TDMB_PowerOff();
-		return FALSE;
+		retVal = 0;
 	} else {
 		g_TDMBGlobal.b_isTDMB_Enable = 1;
 		DPRINTK("[TDMB] tdmb power on success\n");
-		return TRUE;
+		retVal = 1;
 	}
 #endif
+	if(retVal == 1) {
+		TDMB_drv_Init();
+		DPRINTK("TDMB_drv_Init - OK\n");
+	}
+
+	return retVal;
 }
 
 void TDMB_PowerOff(void)
@@ -520,6 +524,7 @@ void TDMB_PowerOff(void)
 
 	__tdmb_drv_power_off();
     
+    s5pv310_cpufreq_lock_free(DVFS_LOCK_ID_PM);
 }
 
 int TDMB_AddDataToRing(unsigned char *pData, unsigned long dwDataSize)

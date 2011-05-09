@@ -31,13 +31,23 @@
 #include <media/m5mo_platform.h>
 #include "m5mo.h"
 
+#define M5MO_SEM_MODULES  // IgnisL , Only Samsung Electro-Mechanics
+
+
 #define M5MO_DRIVER_NAME	"M5MO"
 #define SDCARD_FW
 #ifdef SDCARD_FW
 #define M5MO_FW_PATH		"/sdcard/RS_M5LS.bin"
 #endif /* SDCARD_FW */
-#define M5MOT_FW_REQUEST_PATH	"m5mo/RS_M5LS_T.bin"	/* Techwin */
-#define M5MOO_FW_REQUEST_PATH	"m5mo/RS_M5LS_O.bin"	/* Optical communication */
+
+
+#ifdef M5MO_SEM_MODULES
+#define M5MOS_FW_REQUEST_PATH	"m5mo/RS_M5LS_S.bin"	/* Samsung Electro-Mechanics */
+#else  //Seine
+//#define M5MOT_FW_REQUEST_PATH	"m5mo/RS_M5LS_T.bin"	/* Techwin */
+//#define M5MOO_FW_REQUEST_PATH	"m5mo/RS_M5LS_O.bin"	/* Optical communication */
+#endif
+
 #define M5MO_FW_DUMP_PATH	"/data/RS_M5LS_dump.bin"
 #define M5MO_FW_VER_LEN		22
 #define M5MO_FW_VER_FILE_CUR	0x16FF00
@@ -49,7 +59,7 @@
 #define M5MO_I2C_VERIFY		100
 #define M5MO_ISP_TIMEOUT	3000
 #define M5MO_ISP_AFB_TIMEOUT	15000 /* FIXME */
-#define M5MO_ISP_ESD_TIMEOUT		1000
+#define M5MO_ISP_ESD_TIMEOUT	1000
 
 #define M5MO_JPEG_MAXSIZE	0x3A0000
 #define M5MO_THUMB_MAXSIZE	0xFC00
@@ -695,7 +705,9 @@ static int m5mo_get_phone_fw_version(struct v4l2_subdev *sd,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct device *dev = &client->adapter->dev;
-	u8 sensor_ver[M5MO_FW_VER_LEN] = {0, };
+#ifndef M5MO_SEM_MODULES
+ 	u8 sensor_ver[M5MO_FW_VER_LEN] = {0, };
+#endif
 	const struct firmware *fentry;
 	int err;
 
@@ -732,6 +744,7 @@ request_fw:
 	if (fw_requested) {
 		set_fs(old_fs);
 #endif /* SDCARD_FW */
+#ifndef M5MO_SEM_MODULES
 	m5mo_get_sensor_fw_version(sd, sensor_ver);
 
 	if (sensor_ver[0] == 'T' && sensor_ver[1] == 'B') {
@@ -740,9 +753,11 @@ request_fw:
 		err = request_firmware(&fentry, M5MOO_FW_REQUEST_PATH, dev);
 	} else {
 		cam_warn("cannot find the matched F/W file\n");
-		err = request_firmware(&fentry, M5MOT_FW_REQUEST_PATH, dev);
+		err = -EINVAL;
 	}
-
+#else //Ignis
+	err = request_firmware(&fentry, M5MOS_FW_REQUEST_PATH, dev);
+#endif
 	if (err != 0) {
 		cam_err("request_firmware falied\n");
 		err = -EINVAL;
@@ -2108,7 +2123,9 @@ static int m5mo_load_fw(struct v4l2_subdev *sd)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct device *dev = &client->adapter->dev;
 	const struct firmware *fentry;
+#ifndef M5MO_SEM_MODULES
 	u8 sensor_ver[M5MO_FW_VER_LEN] = {0, };
+#endif
 	u8 *buf = NULL, val, id;
 	int offset, err;
 
@@ -2151,6 +2168,7 @@ request_fw:
 	if (fw_requested) {
 		set_fs(old_fs);
 #endif /* SDCARD_FW */
+#ifndef M5MO_SEM_MODULES
 	m5mo_get_sensor_fw_version(sd, sensor_ver);
 
 	if (sensor_ver[0] == 'T' && sensor_ver[1] == 'B') {
@@ -2161,7 +2179,9 @@ request_fw:
 		cam_err("cannot find the matched F/W file\n");
 		err = -EINVAL;
 	}
-
+#else  //Ignis
+	err = request_firmware(&fentry, M5MOS_FW_REQUEST_PATH, dev);
+#endif
 	if (err != 0) {
 		cam_err("request_firmware falied\n");
 			err = -EINVAL;
@@ -2434,7 +2454,6 @@ static int m5mo_s_stream_preview(struct v4l2_subdev *sd, int enable)
 				return -ETIMEDOUT;
 			}
 		}
-		
 
 		m5mo_set_lock(sd, 0);
 
@@ -2796,10 +2815,11 @@ static int m5mo_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct m5mo_state *state = to_state(sd);
-
+#ifndef M5MO_SEM_MODULES
 	if (m5mo_set_af_softlanding(sd) < 0)
 		cam_err("failed to set soft landing\n");
 
+#endif
 	device_remove_file(&client->dev, &dev_attr_camera_type);
 	device_remove_file(&client->dev, &dev_attr_camera_fw);
 

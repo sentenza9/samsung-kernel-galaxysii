@@ -1083,14 +1083,11 @@ static int fig1_ext0_decoder(u8 *fibBuffer, int figLength)
 	//PRINTF(DMB_FIC_INFO"FIG 1/0 label [%x][%s]\n", EId, gEsbInfo[0].label);
 
 #if 1	// test label filter
-	for(i = 16-1; i >= 0; i--)
-	{
-		if(gEsbInfo[0].label[i] == 0x20) 
-		{
+	for(i = 16-1; i >= 0; i--){
+		if(gEsbInfo[0].label[i] == 0x20){
 		    gEsbInfo[0].label[i] = 0;
     }
-		else
-		{
+		else{
 			if(i == 16-1) 
 				gEsbInfo[0].label[i] = 0;
 			break;
@@ -1134,6 +1131,20 @@ static int fig1_ext1_decoder(u8 *fibBuffer, int figLength)
 
 	pSvcInfo->label[16] = '\0';
 	//PRINTF(NULL, "FIG 1/1 label [%x][%s]\n", SId, pSvcInfo->label);
+
+#if 1	// chahn add  label filter
+	for(i = 16-1; i >= 0; i--) {
+		if(pSvcInfo->label[i] == 0x20){
+			pSvcInfo->label[i] = 0;
+		}
+		else{
+			if(i == 16-1) 
+				pSvcInfo->label[i] = 0;
+			break;
+		}			
+	}    
+#endif	
+	//PRINTF(NULL, "FIG 1/5 label [%x][%s]\n", SId, pSvcInfo->label);
 
 	return result;
 }
@@ -1188,6 +1199,20 @@ static int fig1_ext4_decoder(u8 *fibBuffer, int figLength)
 	pScInfo->label[16] = '\0';
 	//PRINTF(NULL, "FIG 1/4 label [%x][%s]\n", SId, pScInfo->label);
 
+#if 1	// chahn add  label filter
+	for(i = 16-1; i >= 0; i--){
+		if(pScInfo->label[i] == 0x20){
+			pScInfo->label[i] = 0;
+		}
+		else{
+			if(i == 16-1) 
+				pScInfo->label[i] = 0;
+			break;
+		}			
+	}    
+#endif	
+	//PRINTF(NULL, "FIG 1/5 label [%x][%s]\n", SId, pSvcInfo->label);
+
 	return result;
 }
 
@@ -1229,21 +1254,17 @@ static int fig1_ext5_decoder(u8 *fibBuffer, int figLength)
 
 	pSvcInfo->label[16] = '\0';
 
-#if 1	// test label filter
-	for(i = 16-1; i >= 0; i--)
-	{
-		if(pSvcInfo->label[i] == 0x20) 
-		{
+#if 1	// chahn add  label filter
+	for(i = 16-1; i >= 0; i--){
+		if(pSvcInfo->label[i] == 0x20){
 		    pSvcInfo->label[i] = 0;
-    }
-		else
-		{
+		}
+		else{
 			if(i == 16-1) 
 				pSvcInfo->label[i] = 0;
 			break;
-    }			
-    
-  }    
+		}			
+	}    
 #endif	
 	//PRINTF(NULL, "FIG 1/5 label [%x][%s]\n", SId, pSvcInfo->label);
 

@@ -32,14 +32,14 @@
 #define POLLING_INTERVAL	(40 * 1000)
 #define MEASURE_DSG_INTERVAL	(20 * 1000)
 #define MEASURE_CHG_INTERVAL	(3 * 1000)
-#define FULL_CHARGING_TIME	(6 * 60 * 60 * HZ)	/* 6hr */
+#define FULL_CHARGING_TIME	(5 * 60 * 60 * HZ)	/* 5hr */
 #define RECHARGING_TIME		(2 * 60 * 60 * HZ)	/* 2hr */
 #define RESETTING_CHG_TIME		(10 * 60 * HZ)	/* 10Min */
 #define RECHARGING_VOLTAGE	(4130 * 1000)		/* 4.13 V */
-#define HIGH_BLOCK_TEMP_ADC		390
-#define HIGH_RECOVER_TEMP_ADC	348
-#define LOW_BLOCK_TEMP_ADC		247
-#define LOW_RECOVER_TEMP_ADC	256
+#define HIGH_BLOCK_TEMP_ADC		395
+#define HIGH_RECOVER_TEMP_ADC	345
+#define LOW_BLOCK_TEMP_ADC		253
+#define LOW_RECOVER_TEMP_ADC	258
 
 #define FG_T_SOC		0
 #define FG_T_VCELL		1
@@ -113,20 +113,20 @@ struct adc_sample {
 struct sec_bat_info {
 	struct device *dev;
 
-	char *fuel_gauge_name;
-	char *charger_name;
-	char *sub_charger_name;
+	char *fuel_gauge_name;//fuel gauge 이름
+	char *charger_name;//main charger 이름
+	char *sub_charger_name;//sub charger 이름
 
 	unsigned int adc_arr_size;
-	struct sec_bat_adc_table_data *adc_table;
+	struct sec_bat_adc_table_data *adc_table;//온도를 알려주는 용도가 주용도, 아날로그를 디지털로 변환
 	//unsigned int adc_channel;
 	//struct adc_sample temper_adc_sample;
 
-	struct power_supply psy_bat;
-	struct power_supply psy_usb;
-	struct power_supply psy_ac;
+	struct power_supply psy_bat;//물리적 배터리
+	struct power_supply psy_usb;//물리적 USB
+	struct power_supply psy_ac;//물리적 전원
 
-	struct wake_lock vbus_wake_lock;
+	struct wake_lock vbus_wake_lock;//vbus : USB로 들어오는 전압
 	struct wake_lock monitor_wake_lock;
 	struct wake_lock cable_wake_lock;
 	struct wake_lock test_wake_lock;
@@ -138,15 +138,15 @@ struct sec_bat_info {
 	unsigned int batt_temp;	/* Battery Temperature (C) */
 	int batt_temp_high_cnt;
 	int batt_temp_low_cnt;
-	unsigned int batt_health;
-	unsigned int batt_vcell;
-	unsigned int batt_vfocv;
-	unsigned int batt_soc;
-	unsigned int batt_raw_soc;
-	unsigned int batt_presoc;
-	unsigned int polling_interval;
-	unsigned int measure_interval;
-	int charging_status;
+	unsigned int batt_health;//cold, overheat, good, dead etc...
+	unsigned int batt_vcell;//cell당 전압
+	unsigned int batt_vfocv;//전압
+	unsigned int batt_soc;//배터리 잔량
+	unsigned int batt_raw_soc;//배터리잔량 raw값
+	unsigned int batt_presoc;//이전 soc
+	unsigned int polling_interval;//동작 주기
+	unsigned int measure_interval;//동작주기 2 : 짧은시간 확인해야하는 것들
+	int charging_status;//충전 상태 확인
 	//int charging_full_count;
 
 	unsigned int batt_temp_adc;

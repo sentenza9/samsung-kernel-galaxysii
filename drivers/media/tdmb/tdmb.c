@@ -89,7 +89,6 @@ unsigned int cmd_size;
 ST_SUBCH_INFO *g_pStChInfo;
 #endif
 
-extern void TDMBDrv_PowerInit(void);
 extern tdmb_type g_TDMBGlobal;
 
 #ifdef CONFIG_TDMB_SPI
@@ -109,7 +108,6 @@ static int tdmbspi_probe(struct spi_device *spi)
     DPRINTK("spi_setup() fail ret : %d \n", ret);
         return ret;
     }		
-
 	return 0;
 }
 
@@ -663,16 +661,13 @@ static int tdmb_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 #if defined(CONFIG_TDMB_T3700) || defined(CONFIG_TDMB_T3900)
 			extern INC_UINT8 INC_GET_SAMSUNG_ANT_LEVEL(INC_UINT8 ucI2CID);
 
-            if(g_IsChannelStart == 1)
-            {
+			if(g_IsChannelStart == 1) {
                 INC_STATUS_CHECK(TDMB_I2C_ID80);
 			dmBuff.rssi = INC_GET_RSSI(TDMB_I2C_ID80);
 			dmBuff.BER = INC_GET_SAMSUNG_BER(TDMB_I2C_ID80);
 			dmBuff.PER = 0;
 			dmBuff.antenna = INC_GET_SAMSUNG_ANT_LEVEL(TDMB_I2C_ID80);
-            }
-            else
-            {
+			} else {
                 dmBuff.rssi = 100;
                 dmBuff.BER = 2000;
                 dmBuff.PER = 0;
@@ -708,7 +703,6 @@ static int tdmb_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 			reErr = INTERFACE_START_TEST(TDMB_I2C_ID80, g_pStChInfo);
 			if (reErr == INC_SUCCESS) {
 				/* TODO Ensemble  good code .... */
-				g_IsChannelStart = 1;
 				ret = TRUE;
 			} else if (reErr == INC_RETRY) {
 				int temp_ts_size = ts_size;
@@ -719,12 +713,10 @@ static int tdmb_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, 
 				TDMB_PowerOn();
 				ts_size = temp_ts_size;
 
-				if (INTERFACE_START_TEST(TDMB_I2C_ID80, g_pStChInfo) == INC_SUCCESS){
-					g_IsChannelStart = 1;
+				if (INTERFACE_START_TEST(TDMB_I2C_ID80, g_pStChInfo) == INC_SUCCESS)
 					ret = TRUE;
 				}
 			}
-		}
 #elif defined(CONFIG_TDMB_FC8050)
 		ulFreq  = arg / 1000;
 		subChID = arg % 1000;
@@ -789,7 +781,6 @@ int tdmb_probe(struct platform_device *pdev)
 	tdmb_ebi2_init();
 #endif
 
-	/*	TDMBDrv_PowerInit();	*/
 
 #if TDMB_PRE_MALLOC
 	tdmb_makeRingBuffer();

@@ -24,6 +24,10 @@
 //#include "msg.h"
 
 
+#define DPRINTK(x...) printk("TDMB " x)
+
+#define FEATURE_FC8050_DEBUG
+
 extern int TDMBDrv_FIC_CALLBACK(u32 userdata, u8 *data, int length);
 extern int TDMBDrv_MSC_CALLBACK(u32 userdata, u8 subChId, u8 *data, int length);
 extern void tdmb_data_restore(unsigned char* pData, unsigned long dwDataSize, unsigned char ucSubChannel, unsigned char ucSvType);
@@ -445,18 +449,65 @@ SubChInfoTypeDB* DMBDrv_GetFICDAB(int nSubChCnt)
 	return &gDABSubChInfo;
 }
 
+#ifdef FEATURE_FC8050_DEBUG
+#define FC8050_DMB 0x01
+#define FC8050_DATA 0x04
+#define FC8050_DAB 0x08
+
+static u16 gDmbMode=FC8050_DMB;
+void fc8050_isr_interruptclear(void)
+{
+	u8	extIntStatus = 0;
+
+	BBM_READ(NULL, BBM_COM_INT_STATUS, &extIntStatus);
+	BBM_WRITE(NULL, BBM_COM_INT_STATUS, extIntStatus);
+	BBM_WRITE(NULL, BBM_COM_INT_STATUS, 0x00);
+}
+
+static void DMBDrv_Check_Overrun(u8 reset)
+{
+	u16 mfoverStatus;
+	u16 veri_val=0;
+
+	BBM_WORD_READ(NULL, BBM_BUF_OVERRUN, &mfoverStatus);		
+
+	if(mfoverStatus & gDmbMode)
+	{
+		//overrun clear
+		BBM_WORD_WRITE(NULL, BBM_BUF_OVERRUN, mfoverStatus);
+		BBM_WORD_WRITE(NULL, BBM_BUF_OVERRUN, 0x0000);
+
+		if(reset)
+		{
+			//buffer restore
+			BBM_WORD_READ(NULL, BBM_BUF_ENABLE, &veri_val);
+			veri_val &= ~gDmbMode;
+			BBM_WORD_WRITE(NULL, BBM_BUF_ENABLE, veri_val);
+			veri_val |= gDmbMode; 
+			BBM_WORD_WRITE(NULL, BBM_BUF_ENABLE, veri_val);
+
+			//external interrupt restore
+			fc8050_isr_interruptclear();
+		}
+		
+		DPRINTK("FC8050 Overrun occured %s MODE , Restoration : %s performed\n", (gDmbMode&0x01)?"DMB":"DAB", (reset)?" ":"Not");          		
+	}
+
+}
+#endif
+
 unsigned char DMBDrv_SetCh(unsigned long ulFrequency, unsigned char ucSubChannel, unsigned char ucSvType)
 {
 	if(!gInitFlag)
 		return TDMB_FAIL;
 
-  bfirst = 1;
-  TSBuffpos = 0;
-  MSCBuffpos = 0;
-  mp2len = 0;
+        bfirst = 1;
+        TSBuffpos = 0;
+        MSCBuffpos = 0;
+        mp2len = 0;
 
-  gCurSvcType = ucSvType;
-  gCurSubChId = ucSubChannel;
+        gCurSvcType = ucSvType;
+        gCurSubChId = ucSubChannel;
   
 	BBM_VIDEO_DESELECT(NULL, 0, 0, 0);
 	BBM_AUDIO_DESELECT(NULL, 0, 3);
@@ -475,7 +526,15 @@ unsigned char DMBDrv_SetCh(unsigned long ulFrequency, unsigned char ucSubChannel
 	} else {
 		BBM_DATA_SELECT(NULL, ucSubChannel, 2);
 	}
-
+	
+#ifdef FEATURE_FC8050_DEBUG
+	if(ucSvType == 0x18) 
+		gDmbMode=FC8050_DMB;
+	else if(ucSvType == 0x00)
+		gDmbMode=FC8050_DAB;
+	else 
+		gDmbMode=FC8050_DATA;
+#endif
 	return TDMB_SUCCESS;
 }
 
@@ -505,7 +564,10 @@ unsigned char DMBDrv_GetAntLevel(void)
 	gBer = ber;
 	if(GetSignalLevel(ber, &level))
 		return 0;
-
+	
+#ifdef FEATURE_FC8050_DEBUG
+	DMBDrv_Check_Overrun(1);
+#endif
 	return level;
 }
 

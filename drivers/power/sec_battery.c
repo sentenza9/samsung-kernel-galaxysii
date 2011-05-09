@@ -889,7 +889,7 @@ static bool sec_bat_charging_time_management(struct sec_bat_info *info)
 					info->charging_next_time)) {
 			/*reset current in charging status */
 			if (!sec_bat_enable_charging(info, true)) {
-				info->charging_next_time =
+			info->charging_next_time =
 					info->charging_passed_time + RESETTING_CHG_TIME;
 
 				dev_info(info->dev,

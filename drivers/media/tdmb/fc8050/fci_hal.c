@@ -108,7 +108,7 @@ static IF_PORT i2cif = {
 	&fc8050_i2c_deinit
 };
 
-static IF_PORT *ifport = &hpiif;
+static IF_PORT *ifport = &spiif;
 static u8 hostif_type = BBM_HPI;
 
 int bbm_hostif_get(HANDLE hDevice, u8 *hostif)
