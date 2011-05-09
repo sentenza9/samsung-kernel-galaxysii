@@ -31,6 +31,7 @@
 
 #include "s3c-otg-hcdi-driver.h"
 extern void otg_phy_off(void);
+extern void otg_phy_init_for_hostmode(void);
 
 /**
  * static int s5pc110_otg_drv_probe (struct platform_device *pdev)
@@ -74,6 +75,7 @@ static int s5pc110_otg_drv_probe (struct platform_device *pdev)
 
 	otg_dbg(OTG_DBG_OTGHCDI_DRIVER, "s3c_otg_drv_probe\n");
 
+	otg_phy_init_for_hostmode();
 
 	/*init for host mode*/
 	/**

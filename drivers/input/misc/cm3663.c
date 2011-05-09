@@ -45,8 +45,12 @@
 #define REGS_PS_THD		0xB2
 
 #ifdef CONFIG_TARGET_LOCALE_KOR
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+#define PS_THD_COMP1	0x08
+#else
 #define PS_THD_COMP1	0x07
-#define PS_THD_COMP2	0x0A
+#endif
+#define PS_THD_COMP2	0x08 //LGT HW요청사항
 #define PS_THD_COMP3	0x0E
 #define PS_THD_COMP4	0x0E
 
@@ -204,7 +208,7 @@ static int lightsensor_get_alsvalue(struct cm3663_data *cm3663)
 			__func__, cm3663->power_state);
 
 		cm3663_light_enable(cm3663);
-		cm3663->power_state |= LIGHT_ENABLED;
+                cm3663->power_state |= LIGHT_ENABLED;
 	}
 	#endif
 
@@ -252,7 +256,7 @@ static void proxsensor_get_avgvalue(struct cm3663_data *cm3663)
 
 	for (i = 0; i < PROX_READ_NUM; i++) {
 		msleep(40);
-		cm3663_i2c_read(cm3663, REGS_PS_DATA, &proximity_value);
+	cm3663_i2c_read(cm3663, REGS_PS_DATA, &proximity_value);
 		avg += proximity_value;
 
 		if (!i)
@@ -305,7 +309,7 @@ static ssize_t lightsensor_file_state_show(struct device *dev,
 	if (!(cm3663->power_state & LIGHT_ENABLED))
 		cm3663_light_enable(cm3663);
 
-	adc = lightsensor_get_alsvalue(cm3663);
+		adc = lightsensor_get_alsvalue(cm3663);
 
 	if (!(cm3663->power_state & LIGHT_ENABLED))
 		cm3663_light_disable(cm3663);
@@ -476,7 +480,7 @@ static ssize_t proximity_avg_store(struct device *dev,
 }
 
 static DEVICE_ATTR(proximity_avg, 0644,
-		   proximity_avg_show, proximity_avg_store);
+			proximity_avg_show, proximity_avg_store);
 static DEVICE_ATTR(proximity_state, 0644, proximity_state_show, NULL);
 
 static DEVICE_ATTR(lightsensor_file_state, 0644, lightsensor_file_state_show,
@@ -605,9 +609,9 @@ static int cm3663_setup_reg(struct cm3663_data *cm3663)
 	u8 tmp;
 #ifdef CONFIG_TARGET_LOCALE_KOR
 	if (system_rev <= 0x05)
-		reg_defaults[PS_THD] = PS_THD_COMP1; /* PS_THD: 07 */
+		reg_defaults[PS_THD] = PS_THD_COMP1; /* PS_THD: 08 */
 	else
-		reg_defaults[PS_THD] = PS_THD_COMP2; /* PS_THD: 10 */
+		reg_defaults[PS_THD] = PS_THD_COMP2; /* PS_THD: 08 */
 #endif
 	/* initializing the proximity and light sensor registers */
 	mutex_lock(&cm3663->power_lock);

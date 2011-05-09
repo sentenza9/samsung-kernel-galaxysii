@@ -177,4 +177,8 @@ struct max8997_platform_data {
 	struct max8997_muic_data	*muic;
 };
 
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+extern void max8997_muic_update_status(int delay_ms);
+#endif
+
 #endif /*  __LINUX_MFD_MAX8997_H */

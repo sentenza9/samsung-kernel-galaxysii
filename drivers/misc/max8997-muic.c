@@ -139,6 +139,9 @@ struct max8997_muic_info {
 	struct delayed_work	init_work;
 	struct delayed_work	usb_work;
 	struct delayed_work	mhl_work;
+#if defined(CONFIG_MACH_C1_KOR_LGT)	
+	struct delayed_work	detect_work;
+#endif
 	struct mutex		mutex;
 
 	bool			is_usb_ready;
@@ -385,12 +388,12 @@ static void max8997_muic_set_adcdbset(struct max8997_muic_info *info,
 		dev_err(info->dev, "%s: no muic i2c client\n", __func__);
 		return;
 	}
-
+	
 	val = value << CTRL3_ADCDBSET_SHIFT;
 	dev_info(info->dev, "%s: ADCDBSET(0x%02x)\n", __func__, val);
 
 	ret = max8997_update_reg(info->muic, MAX8997_MUIC_REG_CTRL3, val,
-			CTRL3_ADCDBSET_MASK);
+				CTRL3_ADCDBSET_MASK);
 	if (ret < 0)
 		dev_err(info->dev, "%s: fail to update reg\n", __func__);
 }
@@ -743,7 +746,7 @@ static void max8997_muic_attach_mhl(struct max8997_muic_info *info)
 		if (mdata->usb_cb && info->is_usb_ready)
 			mdata->usb_cb(USB_CABLE_DETACHED);
 	}
-#if 0
+#if 0	
 	if (info->cable_type == CABLE_TYPE_MHL) {
 		dev_info(info->dev, "%s: duplicated(MHL)\n", __func__);
 		return;
@@ -776,7 +779,7 @@ static void max8997_muic_handle_jig_uart(struct max8997_muic_info *info,
 			if (mdata->host_notify_cb(1) == NOTIFY_TEST_MODE) {
 				is_otgtest = true;
 				dev_info(info->dev, "%s: OTG TEST\n", __func__);
-			}
+			} 
 		}
 
 		info->cable_type = CABLE_TYPE_JIG_UART_OFF_VB;
@@ -1092,8 +1095,8 @@ static void max8997_muic_detect_dev(struct max8997_muic_info *info)
 			if (info->cable_type == CABLE_TYPE_OTG ||
 			    info->cable_type == CABLE_TYPE_DESKDOCK ||
 			    info->cable_type == CABLE_TYPE_CARDOCK)
-				intr = INT_DETACH;
-		}
+			intr = INT_DETACH;
+	}
 	}
 
 	if (intr == INT_ATTACH) {
@@ -1131,11 +1134,13 @@ static int max8997_muic_irq_init(struct max8997_muic_info *info)
 {
 	int ret;
 
+#if 0	/* IGNIS-LGT : Do NOT check system_rev*/
 #if !defined(CONFIG_MACH_C1_REV00)
 	dev_info(info->dev, "%s: system_rev=%d\n", __func__, system_rev);
 #if !defined(CONFIG_MACH_P6_REV02)
 	if (system_rev < 0x3)
 		return 0;
+#endif
 #endif
 #endif
 
@@ -1194,7 +1199,7 @@ static void max8997_muic_usb_detect(struct work_struct *work)
 			}
 		}
 	}
-	mutex_unlock(&info->mutex);
+ 	mutex_unlock(&info->mutex);
 }
 
 static void max8997_muic_mhl_detect(struct work_struct *work)
@@ -1216,6 +1221,51 @@ static void max8997_muic_mhl_detect(struct work_struct *work)
 out:
 	mutex_unlock(&info->mutex);
 }
+
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+static void max8997_muic_update_detect(struct work_struct *work)
+{
+	struct max8997_muic_info *info = container_of(work,
+			struct max8997_muic_info, detect_work.work);
+	struct max8997_muic_data *mdata = info->muic_data;
+	int ret;
+
+	dev_info(info->dev, "%s\n", __func__);
+
+	mutex_lock(&info->mutex);
+
+	if (info->muic_data->sw_path == CP_USB_MODE) {
+	 	dev_info(info->dev, "%s path is cp-usb\n", __func__);
+		if (info->cable_type == CABLE_TYPE_USB) {
+
+			ret = max8997_muic_set_charging_type(info, false);
+			if (ret) {
+				info->cable_type = CABLE_TYPE_NONE;
+				dev_info(info->dev, "%s failed to set charger\n"
+					, __func__);
+				mutex_unlock(&info->mutex);
+				return;
+			}
+			
+			dev_info(info->dev, "%s set cp usb\n", __func__);	
+			max8997_muic_set_usb_path(info, CP_USB_MODE);
+		}
+	}
+	
+	mutex_unlock(&info->mutex);
+}
+
+static struct max8997_muic_info *local_muic_info;
+
+void max8997_muic_update_status(int delay_ms)
+{
+	struct max8997_muic_info *info = local_muic_info;
+
+	if (info)
+		schedule_delayed_work(&info->detect_work, msecs_to_jiffies(delay_ms));
+}
+EXPORT_SYMBOL(max8997_muic_update_status);
+#endif
 
 static int __devinit max8997_muic_probe(struct platform_device *pdev)
 {
@@ -1321,8 +1371,10 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 
 	mutex_init(&info->mutex);
 
+#if 0   /* IGNIS-LGT : Do NOT set adc debounce time*/
 	/* Set ADC debounce time: 25ms */
 	max8997_muic_set_adcdbset(info, 2);
+#endif
 
 	ret = max8997_muic_irq_init(info);
 	if (ret < 0) {
@@ -1340,6 +1392,11 @@ static int __devinit max8997_muic_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&info->mhl_work, max8997_muic_mhl_detect);
 	schedule_delayed_work(&info->mhl_work, msecs_to_jiffies(25000));
 
+#if defined(CONFIG_MACH_C1_KOR_LGT)
+	INIT_DELAYED_WORK(&info->detect_work, max8997_muic_update_detect);
+	local_muic_info = info;
+#endif
+	
 	return 0;
 
 fail:
@@ -1371,6 +1428,9 @@ static int __devexit max8997_muic_remove(struct platform_device *pdev)
 		cancel_delayed_work(&info->init_work);
 		cancel_delayed_work(&info->usb_work);
 		cancel_delayed_work(&info->mhl_work);
+#if defined(CONFIG_MACH_C1_KOR_LGT)		
+		cancel_delayed_work(&info->detect_work);
+#endif
 		free_irq(info->irq_adc, info);
 		free_irq(info->irq_chgtype, info);
 		free_irq(info->irq_vbvolt, info);

@@ -336,7 +336,7 @@ static DEVICE_ATTR(key_pressed, 0664, key_pressed_show, NULL);
 static struct attribute *gpio_keys_attrs[] = {
 	&dev_attr_keys.attr,
 	&dev_attr_switches.attr,
-	&dev_attr_key_pressed.attr,
+	&dev_attr_key_pressed.attr,	
 	&dev_attr_disabled_keys.attr,
 	&dev_attr_disabled_switches.attr,
 	NULL,
@@ -368,8 +368,8 @@ static void gpio_keys_report_event(struct gpio_button_data *bdata)
 		    (desc->status & IRQ_WAKEUP) ? 1 : !!state);
 	
 	/*
-	if (bdata->key_state == 1)
-		printk(KERN_ERR "key [%d] is pressed\n", bdata->button->code);
+	if(bdata->key_state==1)
+		printk(KERN_ERR"key [%d] is pressed\n",bdata->button->code);
 	*/
 	
 	input_sync(input);

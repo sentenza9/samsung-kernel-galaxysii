@@ -58,6 +58,24 @@ Melfas touchkey register
 
 #define I2C_M_WR 0		/* for i2c */
 
+#define DEVICE_NAME "melfas-touchkey"
+
+#define TOUCH_FIRMWARE_V01  0x01
+#define TOUCH_FIRMWARE_V02  0x02
+#define TOUCH_FIRMWARE_V03  0x03
+#define TOUCH_FIRMWARE_V04  0x04
+
+
+
+
+
+
+#define DOOSUNGTECH_TOUCH_V01  0x01
+#define DOOSUNGTECH_TOUCH_V02  0x02
+#define DOOSUNGTECH_TOUCH_V03  0x03
+
+#define SET_FIRMWARE_V  TOUCH_FIRMWARE_V03
+
 #define DEVICE_NAME "sec_touchkey"
 #define TOUCH_FIRMWARE_V04  0x04
 #define DOOSUNGTECH_TOUCH_V1_2  0x0C
@@ -91,7 +109,7 @@ struct delayed_work touch_resume_work;
 
 #ifdef WHY_DO_WE_NEED_THIS
 static void __iomem *gpio_pend_mask_mem;
-#define		INT_PEND_BASE	0xE0200A54
+#define 	INT_PEND_BASE	0xE0200A54
 #endif
 
 static const struct i2c_device_id melfas_touchkey_id[] = {
@@ -197,7 +215,7 @@ static ssize_t brightness_control(struct device *dev,
 		c1_change_touch_key_led_voltage(data);
 	} else {
 		printk(KERN_ERR "[TouchKey] touch_led_brightness Error\n");
-	}
+}
 
 	return size;
 }
@@ -260,9 +278,9 @@ static int i2c_touchkey_write(u8 * val, unsigned int len)
 		err = i2c_transfer(touchkey_driver->client->adapter, msg, 1);
 		//printk("write value %d to address %d\n",*val, msg->addr);
 		if (err >= 0) {
-
+			
 			return 0;
-
+			
 		}
 		printk(KERN_DEBUG "[TouchKey] %s %d i2c transfer error\n",
 		       __func__, __LINE__);
@@ -289,128 +307,128 @@ void touchkey_work_func(struct work_struct *p)
 	set_touchkey_debug('a');
 
 #ifdef CONFIG_CPU_FREQ
-	/* set_dvfs_target_level(LEV_800MHZ); */
+		/* set_dvfs_target_level(LEV_800MHZ); */
 #endif
 #ifdef TEST_JIG_MODE
-	ret = i2c_touchkey_read(KEYCODE_REG, data, 10);
+		ret = i2c_touchkey_read(KEYCODE_REG, data, 10);
 #else
 	ret = i2c_touchkey_read(KEYCODE_REG, data, 3);
 #endif
-
-
+	
+    
 #ifdef TEST_JIG_MODE
-	menu_sensitivity = data[7];
-	back_sensitivity = data[9];
+		menu_sensitivity = data[7];
+		back_sensitivity = data[9];
 #endif
 
-	/******************************************************************
-	typedef struct I2CReg
-	{
-		unsigned char	 BtnStatus;							 // 0 :
-		unsigned char	 Version;								  // 1 :FW Version
-		unsigned char	 PcbStatus;							 // 2 :Module Version
-		unsigned char	 Cmd;									  // 3 :
-		unsigned char	 Chip_id;								  // 4 :0x55(DEFAULT_CHIP_ID) 0
-		unsigned char	 Sens;									   // 5 :sensitivity grade(0x00(slow),0x01(mid),0x02(fast))
-		WORD			 DiffData[CSD_TotalSensorCount];   //  6, 7 - 8, 9
-		WORD			 RawData[CSD_TotalSensorCount];  // 10,11 - 12,13
-		WORD			 Baseline[CSD_TotalSensorCount];   // 14,15 - 16,17
-	}I2CReg;
-	******************************************************************/
-	set_touchkey_debug(data[0]);
-	if ((data[0] & ESD_STATE_BIT) || (ret != 0)) {
-		printk(KERN_DEBUG
-		       "[TouchKey] ESD_STATE_BIT set or I2C fail: data: %d, retry: %d\n",
-		       data[0], retry);
+		/******************************************************************
+		typedef struct I2CReg 
+		{ 
+			unsigned char	 BtnStatus; 							 // 0 :  
+			unsigned char	 Version;								  // 1 :FW Version 
+			unsigned char	 PcbStatus; 							 // 2 :Module Version 
+			unsigned char	 Cmd;									  // 3 : 
+			unsigned char	 Chip_id;								  // 4 :0x55(DEFAULT_CHIP_ID) 0 
+			unsigned char	 Sens;									   // 5 :sensitivity grade(0x00(slow),0x01(mid),0x02(fast)) 
+			WORD			 DiffData[CSD_TotalSensorCount];   //  6, 7 - 8, 9 
+			WORD			 RawData[CSD_TotalSensorCount];  // 10,11 - 12,13 
+			WORD			 Baseline[CSD_TotalSensorCount];   // 14,15 - 16,17 
+		}I2CReg; 
+		******************************************************************/
+		set_touchkey_debug(data[0]);
+		if ((data[0] & ESD_STATE_BIT) || (ret != 0)) {
+			printk(KERN_DEBUG
+			       "[TouchKey] ESD_STATE_BIT set or I2C fail: data: %d, retry: %d\n",
+			       data[0], retry);
 
-		/* releae key */
-		input_report_key(touchkey_driver->input_dev,
-				 touchkey_keycode[1], 0);
-		input_report_key(touchkey_driver->input_dev,
-				 touchkey_keycode[2], 0);
-		retry = 10;
-		while (retry--) {
-			gpio_direction_output(_3_GPIO_TOUCH_EN, 0);
-			mdelay(300);
-			init_hw();
+			/* releae key */
+			input_report_key(touchkey_driver->input_dev,
+					 touchkey_keycode[1], 0);
+			input_report_key(touchkey_driver->input_dev,
+					 touchkey_keycode[2], 0);
+			retry = 10;
+			while (retry--) {
+				gpio_direction_output(_3_GPIO_TOUCH_EN, 0);
+				mdelay(300);
+				init_hw();
 
-			if (i2c_touchkey_read(KEYCODE_REG, data, 3) >= 0) {
-				printk(KERN_DEBUG
-				       "[TouchKey] %s touchkey init success\n",
-				       __func__);
-				set_touchkey_debug('O');
-				enable_irq(IRQ_TOUCH_INT);
-				return;
+				if (i2c_touchkey_read(KEYCODE_REG, data, 3) >= 0) {
+					printk(KERN_DEBUG
+					       "[TouchKey] %s touchkey init success\n",
+					       __func__);
+					set_touchkey_debug('O');
+					enable_irq(IRQ_TOUCH_INT);
+					return;
+				}
+				printk(KERN_ERR
+				       "[TouchKey] %s %d i2c transfer error retry = %d\n",
+				       __func__, __LINE__, retry);
 			}
-			printk(KERN_ERR
-			       "[TouchKey] %s %d i2c transfer error retry = %d\n",
-			       __func__, __LINE__, retry);
-		}
 
-		/* touchkey die , do not enable touchkey
-		   enable_irq(IRQ_TOUCH_INT); */
-		touchkey_enable = -1;
-		gpio_direction_output(_3_GPIO_TOUCH_EN, 0);
-		gpio_direction_output(_3_TOUCH_SDA_28V, 0);
-		gpio_direction_output(_3_TOUCH_SCL_28V, 0);
-		printk(KERN_DEBUG "[TouchKey] %s touchkey died\n",
-		       __func__);
-		set_touchkey_debug('D');
-		return;
-	}
+			/* touchkey die , do not enable touchkey
+			   enable_irq(IRQ_TOUCH_INT); */
+			touchkey_enable = -1;
+			gpio_direction_output(_3_GPIO_TOUCH_EN, 0);
+			gpio_direction_output(_3_TOUCH_SDA_28V, 0);
+			gpio_direction_output(_3_TOUCH_SCL_28V, 0);
+			printk(KERN_DEBUG "[TouchKey] %s touchkey died\n",
+			       __func__);
+			set_touchkey_debug('D');
+			return;
+		}
 
 	if (touchkey_keycode[data[0] & KEYCODE_BIT] != KEY_MENU && touchkey_keycode[data[0] & KEYCODE_BIT] != KEY_BACK) {
 		enable_irq(IRQ_TOUCH_INT);
 		return ;
 	}
 
-	if (data[0] & UPDOWN_EVENT_BIT) {
-
+		if (data[0] & UPDOWN_EVENT_BIT) {
+		
 		input_report_key(touchkey_driver->input_dev, touchkey_keycode[data[0] & KEYCODE_BIT], 0);
-		input_sync(touchkey_driver->input_dev);
+			input_sync(touchkey_driver->input_dev);
 		
 		/*
-		printk(KERN_DEBUG "[TouchKey] release keycode:%d \n",
-		       touchkey_keycode[data[0] & KEYCODE_BIT]);
-		*/
-
-#ifdef TEST_JIG_MODE
-		if(touchkey_keycode[data[0] & KEYCODE_BIT] == touchkey_keycode[1])
-			printk("menu key sensitivity = %d\n", menu_sensitivity);
-
-		if(touchkey_keycode[data[0] & KEYCODE_BIT] == touchkey_keycode[2])
-			printk("back key sensitivity = %d\n",back_sensitivity);
-#endif
-	} else {
-		if (touch_is_pressed) {
-			printk(KERN_DEBUG
-			       "[TouchKey] touchkey pressed but don't send event because touch is pressed. \n");
-			set_touchkey_debug('P');
-		} else {
-			if ((data[0] & KEYCODE_BIT) == 2) {
-				/* if back key is pressed, release multitouch */
-				/*printk(KERN_DEBUG "[TouchKey] touchkey release tsp input. \n");*/
-				touch_forced_release();
-			}
-
-			input_report_key(touchkey_driver->input_dev,  touchkey_keycode[data[0] & KEYCODE_BIT], 1);
-			input_sync(touchkey_driver->input_dev);
-			
-			/*
-			printk(KERN_DEBUG
-			       "[TouchKey] press keycode:%d \n",
+			printk(KERN_DEBUG "[TouchKey] release keycode:%d \n",
 			       touchkey_keycode[data[0] & KEYCODE_BIT]);
-			*/
-
+		*/
+		       
 #ifdef TEST_JIG_MODE
 			if(touchkey_keycode[data[0] & KEYCODE_BIT] == touchkey_keycode[1])
-				printk("menu key sensitivity = %d\n",menu_sensitivity);
-
+				printk("menu key sensitivity = %d\n", menu_sensitivity);
+			
 			if(touchkey_keycode[data[0] & KEYCODE_BIT] == touchkey_keycode[2])
-				printk("back key sensitivity = %d\n",back_sensitivity);
+				printk("back key sensitivity = %d\n",back_sensitivity);	
 #endif
+		} else {
+		if (touch_is_pressed) {
+				printk(KERN_DEBUG
+				       "[TouchKey] touchkey pressed but don't send event because touch is pressed. \n");
+				set_touchkey_debug('P');
+			} else {
+				if ((data[0] & KEYCODE_BIT) == 2) {
+					/* if back key is pressed, release multitouch */
+				/*printk(KERN_DEBUG "[TouchKey] touchkey release tsp input. \n");*/
+					touch_forced_release();
+				}
+
+			input_report_key(touchkey_driver->input_dev,  touchkey_keycode[data[0] & KEYCODE_BIT], 1);
+				input_sync(touchkey_driver->input_dev);
+			
+			/*
+				printk(KERN_DEBUG
+				       "[TouchKey] press keycode:%d \n",
+				       touchkey_keycode[data[0] & KEYCODE_BIT]);
+			*/
+			       
+#ifdef TEST_JIG_MODE
+				if(touchkey_keycode[data[0] & KEYCODE_BIT] == touchkey_keycode[1])
+					printk("menu key sensitivity = %d\n",menu_sensitivity);
+				
+				if(touchkey_keycode[data[0] & KEYCODE_BIT] == touchkey_keycode[2])
+					printk("back key sensitivity = %d\n",back_sensitivity);	
+#endif
+			}
 		}
-	}
 
 #ifdef WHY_DO_WE_NEED_THIS
 	/* clear interrupt */
@@ -594,8 +612,8 @@ static int i2c_touchkey_probe(struct i2c_client *client,
 		return -EBUSY;
 	}
 
-	/* enable ldo18 */
-	touchkey_led_ldo_on(1);
+    /* enable ldo18 */
+    touchkey_led_ldo_on(1);
 
 	set_touchkey_debug('K');
 	return 0;
@@ -754,7 +772,7 @@ static ssize_t touchkey_enable_disable(struct device *dev,
 
 static ssize_t touchkey_menu_show(struct device *dev,
         struct device_attribute *attr, char *buf)
-{
+{	
 	u8 data[10];
 	int ret;
 
@@ -791,7 +809,7 @@ static ssize_t touch_sensitivity_control(struct device *dev,
 static ssize_t set_touchkey_firm_version_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
 
-	/*TO DO IT */
+    /*TO DO IT */
 	int count;
 	count = sprintf(buf, "0x%x\n", TOUCH_FIRMWARE_V04);
 	return count;
@@ -800,7 +818,7 @@ static ssize_t set_touchkey_firm_version_show(struct device *dev, struct device_
 
 static ssize_t set_touchkey_update_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	/*TO DO IT */
+    /*TO DO IT */
 	int count=0;
 	int retry=3;
 	touchkey_update_status = 1;
@@ -840,17 +858,17 @@ static ssize_t set_touchkey_update_show(struct device *dev, struct device_attrib
 
 static ssize_t set_touchkey_firm_version_read_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	char data[3] = { 0, };
-	int count;
+  char data[3] = { 0, };
+  int count;
 
-	init_hw();
-	if (get_touchkey_firmware(data) != 0) {
-		i2c_touchkey_read(KEYCODE_REG, data, 3);
-	}
-	count = sprintf(buf, "0x%x\n", data[1]);
+  init_hw();
+  if (get_touchkey_firmware(data) != 0) {
+	  i2c_touchkey_read(KEYCODE_REG, data, 3);
+  }
+  count = sprintf(buf, "0x%x\n", data[1]);
 
-	printk(KERN_DEBUG "[TouchKey] touch_version_read 0x%x\n", data[1]);
-	return count;
+  printk(KERN_DEBUG "[TouchKey] touch_version_read 0x%x\n", data[1]);
+  return count;
 }
 
 static ssize_t set_touchkey_firm_status_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -909,26 +927,26 @@ static int __init touchkey_init(void)
 	gpio_request(_3_GPIO_TOUCH_INT, "_3_GPIO_TOUCH_INT");
 
 	/*20110222 N1_firmware_sync*/
-	sec_touchkey= device_create(sec_class, NULL, 0, NULL, "sec_touchkey");
+    sec_touchkey= device_create(sec_class, NULL, 0, NULL, "sec_touchkey");
 
 	if (IS_ERR(sec_touchkey)) {
 			printk(KERN_ERR "Failed to create device(sec_touchkey)!\n");
-	}
+		}
 	if (device_create_file(sec_touchkey, &dev_attr_touchkey_firm_update)< 0) {
-		printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_firm_update.attr.name);
-	}
+			printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_firm_update.attr.name);
+		}
 	if (device_create_file(sec_touchkey, &dev_attr_touchkey_firm_update_status)< 0)	{
-		printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_firm_update_status.attr.name);
-	}
+			printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_firm_update_status.attr.name);
+		}
 	if (device_create_file(sec_touchkey, &dev_attr_touchkey_firm_version_phone)< 0)	{
-		printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_firm_version_phone.attr.name);
-	}
+			printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_firm_version_phone.attr.name);
+		}
 	if (device_create_file(sec_touchkey, &dev_attr_touchkey_firm_version_panel)< 0)	{
-		printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_firm_version_panel.attr.name);
-	}
+			printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_firm_version_panel.attr.name);
+		}
 	if (device_create_file(sec_touchkey, &dev_attr_touchkey_brightness)< 0)	{
-		printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_brightness.attr.name);
-	}
+			printk(KERN_ERR "Failed to create device file(%s)!\n", dev_attr_touchkey_brightness.attr.name);
+		}
 	/*end N1_firmware_sync*/
 
 	ret = misc_register(&touchkey_update_device);
@@ -937,7 +955,7 @@ static int __init touchkey_init(void)
 	}
 
 	if (device_create_file
-		(touchkey_update_device.this_device, &dev_attr_touch_version) < 0) {
+	    (touchkey_update_device.this_device, &dev_attr_touch_version) < 0) {
 		printk(KERN_ERR
 		       "[TouchKey] %s device_create_file fail dev_attr_touch_version\n",
 		       __func__);
@@ -975,27 +993,27 @@ static int __init touchkey_init(void)
 
 	if (device_create_file
 		(touchkey_update_device.this_device, &dev_attr_touchkey_menu) < 0) {
-		printk(KERN_ERR
+		printk(KERN_ERR 
 			"%s device_create_file fail dev_attr_touchkey_menu\n"
 			,__func__);
-		pr_err("Failed to create device file(%s)!\n",
+		pr_err("Failed to create device file(%s)!\n", 
 			dev_attr_touchkey_menu.attr.name);
 	}
 
 	if (device_create_file
 		(touchkey_update_device.this_device, &dev_attr_touchkey_back) < 0) {
-		printk(KERN_ERR
+		printk(KERN_ERR 
 			"%s device_create_file fail dev_attr_touchkey_back\n",
 			__func__);
-		pr_err("Failed to create device file(%s)!\n",
+		pr_err("Failed to create device file(%s)!\n", 
 			dev_attr_touchkey_back.attr.name);
 	}
-
+	
 	if (device_create_file
 		(touchkey_update_device.this_device, &dev_attr_touch_sensitivity) < 0) {
 		printk("%s device_create_file fail dev_attr_touch_sensitivity\n",
 			__func__);
-		pr_err("Failed to create device file(%s)!\n",
+		pr_err("Failed to create device file(%s)!\n", 
 			dev_attr_touch_sensitivity.attr.name);
 	}
 
@@ -1015,14 +1033,14 @@ static int __init touchkey_init(void)
 		       "[TouchKey] melfas touch keypad registration failed, module not inserted.ret= %d\n",
 		       ret);
 	}
-	/* Cypress Firmware Update>>>>>>>>>>
-		i2c_touchkey_read(KEYCODE_REG, data, 3);
+/* Cypress Firmware Update>>>>>>>>>> 
+		i2c_touchkey_read(KEYCODE_REG, data, 3);	
 		printk(KERN_ERR"%s F/W version: 0x%x, Module version:0x%x\n", __FUNCTION__, data[1], data[2]);
 		retry = 3;
-
+	
 		touch_version = data[1];
 		module_version = data[2];
-
+			
 		// Firmware check & Update
 		if((module_version == DOOSUNGTECH_TOUCH_V1_2)&& (touch_version != TOUCH_FIRMWARE_V04)){
 			touchkey_update_status=1;
@@ -1041,9 +1059,9 @@ static int __init touchkey_init(void)
 				msleep(300);
 
 			}
-
+			
 			init_hw();	//after update, re initalize.
-		}else {
+		}else { 
 			if(module_version != DOOSUNGTECH_TOUCH_V1_2){
 				printk(KERN_ERR "[TouchKey] Not F/W update. Cypess touch-key module is not DOOSUNG TECH. \n");
 			} else if(touch_version == TOUCH_FIRMWARE_V04){
@@ -1053,7 +1071,7 @@ static int __init touchkey_init(void)
 			}
 		}
 
-	 <<<<<<<<<<<<<< Cypress Firmware Update */
+ <<<<<<<<<<<<<< Cypress Firmware Update */
 
 #ifdef TEST_JIG_MODE
 	i2c_touchkey_write(&get_touch, 1);
