@@ -29,6 +29,8 @@ struct modemctl_ops {
 	void (*modem_suspend)(struct modemctl *);
 	void (*modem_resume)(struct modemctl *);
 	void (*modem_cfg_gpio)(void);
+	void (*modem_boot_on)(struct modemctl *);
+	void (*modem_boot_off)(struct modemctl *);
 };
 
 struct modemctl_platform_data {
@@ -37,8 +39,14 @@ struct modemctl_platform_data {
 	unsigned gpio_phone_active;
 	unsigned gpio_pda_active;
 	unsigned gpio_cp_reset;
+	unsigned gpio_cp_reset_msm;
 	unsigned gpio_usim_boot;
 	unsigned gpio_flm_sel;
+
+#if defined(CONFIG_SAMSUNG_PHONE_MODEMCTL)
+	unsigned gpio_boot_sw_sel;
+#endif
+
 	unsigned gpio_cp_req_reset;	/*HSIC*/
 	unsigned gpio_ipc_slave_wakeup;
 	unsigned gpio_ipc_host_wakeup;
@@ -56,8 +64,15 @@ struct modemctl {
 	unsigned gpio_phone_active;
 	unsigned gpio_pda_active;
 	unsigned gpio_cp_reset;
+	unsigned gpio_cp_reset_msm;
 	unsigned gpio_usim_boot;
 	unsigned gpio_flm_sel;
+
+#if defined(CONFIG_SAMSUNG_PHONE_MODEMCTL)
+	unsigned gpio_boot_sw_sel;
+	struct regulator *cp_vbus;
+	bool usb_boot;
+#endif
 
 	unsigned gpio_cp_req_reset;
 	unsigned gpio_ipc_slave_wakeup;
