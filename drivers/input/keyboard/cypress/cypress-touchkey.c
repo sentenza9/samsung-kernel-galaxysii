@@ -65,6 +65,9 @@ Melfas touchkey register
 #define TOUCH_FIRMWARE_V04  0x04
 #define DOOSUNGTECH_TOUCH_V1_2  0x0C
 
+
+static DEFINE_MUTEX(state_lock);
+
 /*
 #define TEST_JIG_MODE
 */
@@ -225,12 +228,16 @@ static int i2c_touchkey_read(u8 reg, u8 * val, unsigned int len)
 		return -ENODEV;
 	}
 
+	
 	while (retry--) {
 		msg->addr = touchkey_driver->client->addr;
 		msg->flags = I2C_M_RD;
 		msg->len = len;
 		msg->buf = val;
+
+		mutex_lock(&state_lock);
 		err = i2c_transfer(touchkey_driver->client->adapter, msg, 1);
+		mutex_unlock(&state_lock);
 
 		if (err >= 0) {
 			return 0;
@@ -260,7 +267,11 @@ static int i2c_touchkey_write(u8 * val, unsigned int len)
 		msg->flags = I2C_M_WR;
 		msg->len = len;
 		msg->buf = data;
+
+		mutex_lock(&state_lock);
 		err = i2c_transfer(touchkey_driver->client->adapter, msg, 1);
+		mutex_unlock(&state_lock);
+
 		//printk("write value %d to address %d\n",*val, msg->addr);
 		if (err >= 0) {
 
