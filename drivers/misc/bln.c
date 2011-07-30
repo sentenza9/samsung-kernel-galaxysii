@@ -15,6 +15,7 @@
 #include <linux/miscdevice.h>
 #include <linux/bln.h>
 #include <linux/mutex.h>
+#include <linux/cypress-touchkey.h>
 
 static bool bln_enabled = true; /* is BLN function is enabled */
 static bool bln_ongoing = false; /* ongoing LED Notification */
@@ -54,8 +55,13 @@ static struct early_suspend bln_suspend_data = {
 
 static void enable_led_notification(void)
 {
+	struct early_suspend *h;
+
 	if (!bln_enabled)
 		return;
+
+	if (touchkey_enabled_status() == 0)
+		melfas_touchkey_late_resume(h);
 
 	bln_enable_backlights();
 	pr_info("%s: notification led enabled\n", __FUNCTION__);

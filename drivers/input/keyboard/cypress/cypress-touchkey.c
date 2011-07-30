@@ -448,36 +448,41 @@ int melfas_touchkey_early_suspend(struct early_suspend *h)
 #else
 	if (1) {
 #endif
+		touchkey_enable = 0;
+		set_touchkey_debug('S');
+		printk(KERN_DEBUG "[TouchKey] melfas_touchkey_early_suspend\n");
+		if (touchkey_enable < 0) {
+			printk(KERN_DEBUG "[TouchKey] ---%s---touchkey_enable: %d\n",
+			       __func__, touchkey_enable);
+			return 0;
+		}
+
+		disable_irq(IRQ_TOUCH_INT);
+		gpio_direction_input(_3_GPIO_TOUCH_INT);
+
+	#if 0
+		gpio_direction_output(_3_GPIO_TOUCH_EN, 0);
+		gpio_direction_output(_3_TOUCH_SDA_28V, 0);
+		gpio_direction_output(_3_TOUCH_SCL_28V, 0);
+		s3c_gpio_setpull(_3_GPIO_TOUCH_INT, S3C_GPIO_PULL_DOWN);
+	#endif
+
+
 		/* disable ldo18 */
 		touchkey_led_ldo_on(0);
+	
+
+		/* disable ldo11 */
+		touchkey_ldo_on(0);
+
 	}
-
-	/* disable ldo11 */
-	touchkey_ldo_on(0);
-
 
 	return 0;
 }
 
-static void melfas_enable_touchkey_backlights(void) {
-	uint8_t val = 1;
+EXPORT_SYMBOL(melfas_touchkey_early_suspend);
 
-	touchkey_led_ldo_on(1);
-	i2c_touchkey_write(&val, sizeof(val));
-}
-
-static void melfas_disable_touchkey_backlights(void) {
-	uint8_t val = 0;
-
-	i2c_touchkey_write(&val, sizeof(val));
-}
-
-static struct bln_implementation cypress_touchkey_bln = {
-	.enable = melfas_enable_touchkey_backlights,
-	.disable = melfas_disable_touchkey_backlights,
-};
-
-static int melfas_touchkey_late_resume(struct early_suspend *h)
+int melfas_touchkey_late_resume(struct early_suspend *h)
 {
 #ifdef TEST_JIG_MODE
 	unsigned char get_touch = 0x40;
@@ -529,7 +534,13 @@ static int melfas_touchkey_late_resume(struct early_suspend *h)
 
 	return 0;
 }
+
+EXPORT_SYMBOL(melfas_touchkey_late_resume);
+
 #endif
+
+
+
 
 extern int mcsdl_download_binary_data(void);
 static int i2c_touchkey_probe(struct i2c_client *client,
@@ -745,6 +756,7 @@ static ssize_t touch_led_control(struct device *dev,
 {
 	int data;
 	int errnum;
+
 	if (sscanf(buf, "%d\n", &data) == 1) {
 		errnum = i2c_touchkey_write((u8 *)&data, 1);
 		if(errnum==-ENODEV) {
@@ -758,12 +770,44 @@ static ssize_t touch_led_control(struct device *dev,
 	return size;
 }
 
+static void melfas_enable_touchkey_backlights(void) {
+	struct device *dev;
+	struct device_attribute *attr;
+	size_t size;
+	char buf[1];
+
+	*buf = '1';
+	touch_led_control(dev, attr, buf, size);
+}
+
+static void melfas_disable_touchkey_backlights(void) {
+	struct device *dev;
+	struct device_attribute *attr;
+	size_t size;
+	char buf[1];
+
+	*buf = '2';
+	touch_led_control(dev, attr, buf, size);
+}
+
+static struct bln_implementation cypress_touchkey_bln = {
+	.enable = melfas_enable_touchkey_backlights,
+	.disable = melfas_disable_touchkey_backlights,
+};
+
 static ssize_t touchkey_enable_disable(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t size)
 {
 	return size;
 }
+
+int touchkey_enabled_status()
+{
+	return touchkey_enable;
+}
+
+EXPORT_SYMBOL(touchkey_enabled_status);
 
 static ssize_t touchkey_menu_show(struct device *dev,
         struct device_attribute *attr, char *buf)
